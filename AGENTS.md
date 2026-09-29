@@ -41,7 +41,9 @@ openspec/            spec-driven change documents
 
 Shared build settings live in `Directory.Build.props`; package versions only in `Directory.Packages.props`
 (no `Version=` on `PackageReference`). Style is in `.editorconfig`: file-scoped namespaces, `_camelCase` private
-instance fields, PascalCase static fields, `var` only when the type is apparent, LF line endings.
+instance fields, PascalCase static fields, `var` only when the type is apparent, LF line endings. Every `.cs` file
+needs the SPDX license header (`dotnet format` adds it): GPL-3.0-or-later everywhere except `src/UrDeck.Analyzer` (MIT).
+See the README license map before moving code between projects: it can change the license.
 
 ## Windows / WPF gotchas
 

@@ -93,6 +93,16 @@ A widget is a class deriving from `Widget<TConfig>` with a few attributes; the R
 
 The Windows SDK suffix on the host and test target frameworks is required: `SkiaSharp.Views.WPF` only ships its .NET build for `net10.0-windows10.0.19041`.
 
+## License
+
+| Path | License |
+|---|---|
+| `src/UrDeck.Host`, `src/UrDeck.Core`, `widgets/`, `tests/` | [GPL-3.0-or-later](LICENSE) with the [plugin exception](PLUGIN-EXCEPTION.md) |
+| `src/UrDeck.Analyzer` | [MIT](src/UrDeck.Analyzer/LICENSE) |
+| Community widgets | The author's choice |
+
+Widgets that talk to UrDeck only through the SDK API may use any license, including proprietary ones; that is what the plugin exception grants. `UrDeck.Core` still mixes the widget SDK and the engine, so it is GPL for now. The SDK part moves to its own MIT-licensed assembly (`UrDeck.Sdk`) in an upcoming change, and the engine stays GPL. Code samples in the docs are MIT.
+
 ## Contributing
 
 All changes go through a pull request that is squash-merged into `main`; see [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, code standards and performance budgets, and [AGENTS.md](AGENTS.md) for the command cheat sheet.

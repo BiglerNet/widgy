@@ -98,10 +98,11 @@ agents) pushes to `main` directly. Configure on GitHub (repo settings + a rulese
 
 - [x] **Name:** UrDeck (short for "your deck"). Renamed from Widgy: namespaces, assemblies, exe, config (`urdeck-config.json`),
   log (`urdeck.log`), widget type ids (`urdeck.widgets.clock`), analyzer ids (`URDECK001-005`), env vars.
-- [ ] **GitHub:** move the repo to a dedicated `urdeck` org as `urdeck/urdeck` (GitHub redirects the old URL); reserve the
-  `UrDeck.` NuGet prefix; claim `urdeck.app` / `urdeck.dev`.
-- [ ] **Licenses** (one PR: per-directory `LICENSE` files, SPDX in `Directory.Build.props`/`PackageLicenseExpression`,
-  README license map):
+- [x] **GitHub:** the repo lives in the `UrDeck` org as `UrDeck/urdeck` (moved 2026-09-29; the old URL redirects).
+- [ ] Reserve the `UrDeck.` NuGet prefix; register `urdeck.app` / `urdeck.dev` (owner task).
+- [x] **Licenses** (done: root `LICENSE`, `PLUGIN-EXCEPTION.md`, per-directory `LICENSE` for the MIT analyzer, SPDX headers
+  enforced by `.editorconfig`, `PackageLicenseExpression` in the build props, README license map). Interim state:
+  `UrDeck.Core` is GPL until the SDK/Engine split below, so only the analyzer is MIT today. The plan:
   - Host, engine and official widgets: **GPL-3.0-or-later** with a GPLv3 section 7 **plugin exception**: widgets that use only
     the public SDK API may be under any license.
   - SDK and analyzer (`UrDeck.Sdk`): **MIT**. Templates and example widgets: MIT (so copying them does not make a
@@ -191,7 +192,8 @@ widget palette with performance tiers. Likely a separate window on the primary m
 
 ## 12. Packaging and distribution
 
-Installer, start with Windows, tray icon, auto-update, logo and branding, winget manifest and GitHub release automation. **Model:** Sonnet.
+Installer, start with Windows, tray icon, auto-update, logo and branding, winget manifest and GitHub release automation, and a third-party notices file
+(SkiaSharp is MIT and must be attributed in binary releases). **Model:** Sonnet.
 
 ## 13. SDK distribution and other displays
 
