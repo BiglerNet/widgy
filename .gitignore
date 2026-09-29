@@ -21,7 +21,7 @@ node_modules/
 packages/
 
 # Runtime / user-local
-widgy.log
+urdeck.log
 /plugins/
 
 # Agent session logs and scratch captures

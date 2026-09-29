@@ -3,8 +3,8 @@
   <PropertyGroup>
     <!-- Target frameworks shared by the projects. The Windows SDK suffix matters: SkiaSharp.Views.WPF only ships a
          .NET build for net10.0-windows10.0.19041; plain net10.0-windows silently falls back to its net48 build. -->
-    <WidgyTfm>net10.0</WidgyTfm>
-    <WidgyWindowsTfm>net10.0-windows10.0.19041.0</WidgyWindowsTfm>
+    <UrDeckTfm>net10.0</UrDeckTfm>
+    <UrDeckWindowsTfm>net10.0-windows10.0.19041.0</UrDeckWindowsTfm>
 
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
@@ -20,7 +20,7 @@
 
   <!-- Test projects: xunit v2 on the Windows TFM (they reference WPF-adjacent assemblies) and never packed. -->
   <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('.Tests'))">
-    <TargetFramework>$(WidgyWindowsTfm)</TargetFramework>
+    <TargetFramework>$(UrDeckWindowsTfm)</TargetFramework>
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);NU1701</NoWarn>
   </PropertyGroup>

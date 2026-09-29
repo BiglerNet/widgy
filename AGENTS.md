@@ -1,6 +1,6 @@
 # Agent and contributor guide
 
-Widgy is a lightweight widget dashboard for secondary/case displays (WPF host, SkiaSharp rendering, plugin widgets).
+UrDeck is a lightweight widget dashboard for secondary/case displays (WPF host, SkiaSharp rendering, plugin widgets).
 Read `README.md` for what it is, `docs/ROADMAP.md` for what to work on, and `CONTRIBUTING.md` for the full process.
 
 ## Workflow (non-negotiable)
@@ -15,25 +15,25 @@ Read `README.md` for what it is, `docs/ROADMAP.md` for what to work on, and `CON
 ## Commands
 
 ```powershell
-dotnet build widgy.slnx -c Release                     # 0 warnings required; warnings are errors
-dotnet test widgy.slnx -c Release
-dotnet test tests/Widgy.Core.Tests -c Release -p:CollectCoverage=true   # enforces the Widgy.Core line-coverage floor
-dotnet format widgy.slnx --severity warn               # apply style; CI runs it with --verify-no-changes
+dotnet build urdeck.slnx -c Release                     # 0 warnings required; warnings are errors
+dotnet test urdeck.slnx -c Release
+dotnet test tests/UrDeck.Core.Tests -c Release -p:CollectCoverage=true   # enforces the UrDeck.Core line-coverage floor
+dotnet format urdeck.slnx --severity warn               # apply style; CI runs it with --verify-no-changes
 openspec validate --all --strict
 ```
 
-Render without a screen (from `src/Widgy.Host/bin/Release/net10.0-windows10.0.19041.0/`):
-`Widgy.Host.exe --snapshot out.snapshot.png --size 1100x3840`.
+Render without a screen (from `src/UrDeck.Host/bin/Release/net10.0-windows10.0.19041.0/`):
+`UrDeck.Host.exe --snapshot out.snapshot.png --size 1100x3840`.
 
 CI (`.github/workflows/ci.yml`) runs all of the above on `windows-latest`; run them locally before pushing.
 
 ## Layout
 
 ```
-src/Widgy.Core       SDK: attributes, Widget<T>, render context, config, grid, plugin loader, PageRenderer
-src/Widgy.Analyzer   Roslyn analyzer (WIDGY001-005), netstandard2.0
-src/Widgy.Host       WPF app: window/monitor placement, one SKElement per widget
-widgets/             first-party widget plugins (Widgy.Widgets.Clock, ...); copied to plugins/ by the host build
+src/UrDeck.Core       SDK: attributes, Widget<T>, render context, config, grid, plugin loader, PageRenderer
+src/UrDeck.Analyzer   Roslyn analyzer (URDECK001-005), netstandard2.0
+src/UrDeck.Host       WPF app: window/monitor placement, one SKElement per widget
+widgets/             first-party widget plugins (UrDeck.Widgets.Clock, ...); copied to plugins/ by the host build
 tests/               xUnit projects
 docs/                ROADMAP.md, perf/, architecture notes
 openspec/            spec-driven change documents
@@ -45,15 +45,15 @@ instance fields, PascalCase static fields, `var` only when the type is apparent,
 
 ## Windows / WPF gotchas
 
-- Host and test projects must target `net10.0-windows10.0.19041.0` (`$(WidgyWindowsTfm)`): `SkiaSharp.Views.WPF` only
+- Host and test projects must target `net10.0-windows10.0.19041.0` (`$(UrDeckWindowsTfm)`): `SkiaSharp.Views.WPF` only
   ships its .NET build for that Windows SDK version; plain `net10.0-windows` silently falls back to net48.
-- Launching `Widgy.Host.exe` (not `--snapshot`) blocks the shell. Start it detached and read `widgy.log` next to the exe;
+- Launching `UrDeck.Host.exe` (not `--snapshot`) blocks the shell. Start it detached and read `urdeck.log` next to the exe;
   it logs monitors, target vs. actual window bounds, placed widgets, reloads and warnings.
 - Screen capture: use Windows PowerShell 5.1 (`powershell.exe`, not `pwsh`), call `SetProcessDpiAwarenessContext(-4)`
   first, then `Graphics.CopyFromScreen` on the monitor bounds. `PrintWindow` on the WPF window returns blank. Prefer one
   capture, or ask the user to look.
 - In Git Bash, MSYS rewrites `/p:Foo` style switches as paths; use `-p:Foo`.
 - Plugins load from a shadow copy in a collectible `AssemblyLoadContext`. WPF pins assemblies in internal caches
-  (see `src/Widgy.Host/WpfAssemblyCache.cs`); keep plugin types out of long-lived static caches.
+  (see `src/UrDeck.Host/WpfAssemblyCache.cs`); keep plugin types out of long-lived static caches.
 - Do not add per-widget styling or resolution assumptions: styling belongs in the (planned) theme engine and the user
   never sees resolution or scaling.

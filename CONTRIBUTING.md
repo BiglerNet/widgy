@@ -1,4 +1,4 @@
-# Contributing to Widgy
+# Contributing to UrDeck
 
 Thanks for helping. This document covers the workflow, code standards, how to write a widget and what reviewers check.
 Agents and humans follow the same rules; the short version for agents is in [AGENTS.md](AGENTS.md).
@@ -26,31 +26,31 @@ force pushes or deletion, squash merges only.
 
 ## Code standards
 
-- Enforced by `.editorconfig` and the build (`dotnet format widgy.slnx --verify-no-changes --severity warn` in CI):
+- Enforced by `.editorconfig` and the build (`dotnet format urdeck.slnx --verify-no-changes --severity warn` in CI):
   file-scoped namespaces, `using`s outside the namespace and sorted, `_camelCase` private instance fields, PascalCase
   static fields, `I` prefix for interfaces, `var` only when the type is apparent, LF line endings.
 - Shared MSBuild settings are in `Directory.Build.props`; package versions are only in `Directory.Packages.props`.
-- Tests: xUnit in `tests/`. `Widgy.Core` has a line-coverage floor (currently 65%, enforced in CI; raise it when
+- Tests: xUnit in `tests/`. `UrDeck.Core` has a line-coverage floor (currently 65%, enforced in CI; raise it when
   coverage improves, never lower it to make a PR pass).
 - Comments explain why, not what. Match the surrounding code.
 
 ## Writing a widget
 
-A widget is a class deriving from `Widget<TConfig>` in a class library that references `Widgy.Core`. Attributes
+A widget is a class deriving from `Widget<TConfig>` in a class library that references `UrDeck.Core`. Attributes
 provide the metadata, so you normally override only `Render`. `Render` is synchronous, runs on the UI thread and must
 be fast; override `UpdateAsync` to fetch data off the render path.
 
 ```csharp
 using SkiaSharp;
-using Widgy.Core;
-using Widgy.Core.Attributes;
-using Widgy.Core.Config;
-using Widgy.Core.Enums;
-using Widgy.Core.Rendering;
+using UrDeck.Core;
+using UrDeck.Core.Attributes;
+using UrDeck.Core.Config;
+using UrDeck.Core.Enums;
+using UrDeck.Core.Rendering;
 
 public class HelloConfig : WidgetConfig
 {
-    public string Text { get; set; } = "Hello, Widgy";
+    public string Text { get; set; } = "Hello, UrDeck";
 }
 
 [Widget("Hello", "Draws a greeting", Id = "example.hello")]
@@ -77,18 +77,18 @@ Rules enforced at compile time by the analyzer and again by the loader:
 - Exactly one of `[RefreshOnTick]`, `[RefreshAdaptive]` or `[RefreshOnEvent]`.
 - A public parameterless constructor.
 
-Project file for a first-party widget (modelled on `widgets/Widgy.Widgets.Clock`; it inherits the shared settings from
+Project file for a first-party widget (modelled on `widgets/UrDeck.Widgets.Clock`; it inherits the shared settings from
 `Directory.Build.props`). A third-party widget in its own repo sets `TargetFramework` and the other properties itself.
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>$(WidgyTfm)</TargetFramework>
+    <TargetFramework>$(UrDeckTfm)</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <!-- Widgy.Core and SkiaSharp come from the host at runtime; do not copy them next to the plugin. -->
-    <ProjectReference Include="..\..\src\Widgy.Core\Widgy.Core.csproj" Private="false" />
-    <ProjectReference Include="..\..\src\Widgy.Analyzer\Widgy.Analyzer.csproj">
+    <!-- UrDeck.Core and SkiaSharp come from the host at runtime; do not copy them next to the plugin. -->
+    <ProjectReference Include="..\..\src\UrDeck.Core\UrDeck.Core.csproj" Private="false" />
+    <ProjectReference Include="..\..\src\UrDeck.Analyzer\UrDeck.Analyzer.csproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <OutputItemType>Analyzer</OutputItemType>
     </ProjectReference>
@@ -97,15 +97,15 @@ Project file for a first-party widget (modelled on `widgets/Widgy.Widgets.Clock`
 ```
 
 For a first-party widget also add a `ProjectReference` (with `ReferenceOutputAssembly=false`) and a copy step in
-`src/Widgy.Host/Widgy.Host.csproj`, as the Clock has. Otherwise build the DLL and copy it into the host's `plugins/`
-folder (next to `Widgy.Host.exe`). While Widgy is running, adding, replacing or deleting a DLL there reloads the plugins
+`src/UrDeck.Host/UrDeck.Host.csproj`, as the Clock has. Otherwise build the DLL and copy it into the host's `plugins/`
+folder (next to `UrDeck.Host.exe`). While UrDeck is running, adding, replacing or deleting a DLL there reloads the plugins
 and rebuilds the page after about half a second; the original file is never locked because plugins load from a shadow
-copy in their own collectible `AssemblyLoadContext`. Reference the widget by its `Id` in `widgy-config.json`. A widget
+copy in their own collectible `AssemblyLoadContext`. Reference the widget by its `Id` in `urdeck-config.json`. A widget
 that throws in `Render` shows a red error tile instead of taking the dashboard down.
 
 ## Performance budgets
 
-Widgy's selling point is a low footprint, so cost is reviewed like correctness. The formal tiers and the benchmark mode
+UrDeck's selling point is a low footprint, so cost is reviewed like correctness. The formal tiers and the benchmark mode
 are roadmap item 4; until then, the working targets are:
 
 - Host baseline: 60-70 MB private memory in Release (an empty WPF window alone is ~53 MB).

@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>$(UrDeckWindowsTfm)</TargetFramework>
+        <UseWPF>true</UseWPF>
+        <ApplicationManifest>app.manifest</ApplicationManifest>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="SkiaSharp" />
+        <PackageReference Include="SkiaSharp.Views.WPF" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\UrDeck.Core\UrDeck.Core.csproj" />
+        <!-- Build the built-in plugin with the host, but load it from plugins/ at runtime (not referenced). -->
+        <ProjectReference Include="..\..\widgets\UrDeck.Widgets.Clock\UrDeck.Widgets.Clock.csproj">
+            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+            <Private>false</Private>
+        </ProjectReference>
+    </ItemGroup>
+    <ItemGroup>
+        <None Update="urdeck-config.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
+    <!-- Drop built-in plugin assemblies into $(OutDir)plugins so the host discovers them like any third-party plugin. -->
+    <Target Name="CopyBuiltInPlugins" AfterTargets="Build">
+        <MSBuild Projects="..\..\widgets\UrDeck.Widgets.Clock\UrDeck.Widgets.Clock.csproj" Targets="GetTargetPath" Properties="Configuration=$(Configuration)">
+            <Output TaskParameter="TargetOutputs" ItemName="_UrDeckPluginAssembly" />
+        </MSBuild>
+        <Copy SourceFiles="@(_UrDeckPluginAssembly)" DestinationFolder="$(OutDir)plugins" SkipUnchangedFiles="true" />
+    </Target>
+</Project>

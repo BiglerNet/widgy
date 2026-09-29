@@ -1,0 +1,23 @@
+{
+  "pages": [
+    {
+      "name": "Default",
+      "widgets": [
+        {
+          "typeId": "urdeck.widgets.clock",
+          "col": 0,
+          "row": 0,
+          "width": 4,
+          "height": 2,
+          "format": "24h",
+          "showDate": true,
+          "fontSize": 1.0
+        }
+      ]
+    }
+  ],
+  "activePage": 0,
+  "dock": [],
+  "theme": "default-dark",
+  "monitorName": "tallest"
+}

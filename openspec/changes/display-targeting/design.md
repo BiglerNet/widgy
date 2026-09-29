@@ -17,5 +17,5 @@
 - EDID serials are often missing or duplicated on identical panels; the tie-break by previous position is heuristic.
 - The HYTE Y70 Touch panel may report a generic EDID name; verify on hardware and design the fallback naming.
 - Hidden-window behavior with per-widget timers running: timers should pause while hidden to keep idle CPU near zero.
-- Picker UI adds WPF surface area and memory; keep it lazy and released after closing (relates to the memory goal in `widgy-framework`).
+- Picker UI adds WPF surface area and memory; keep it lazy and released after closing (relates to the memory goal in `urdeck-framework`).
 - Verification of "correct scale" needs a testable seam: abstract the monitor enumeration/placement behind an interface so convergence logic can be unit-tested with simulated display sequences (sleep/wake orders, DPI changes).

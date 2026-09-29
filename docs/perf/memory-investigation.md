@@ -1,10 +1,10 @@
-# Widgy.Host memory investigation
+# UrDeck.Host memory investigation
 
 ## Context
 
 - Windows 11 Pro 10.0.26200, .NET 10, Release build, one Clock widget (4x2 grid, 1100x550 DIPs, scale 1.5) on the 1100x3840 portrait monitor.
 - Method: launch detached, wait 13 s, read `WorkingSet64` / `PrivateMemorySize64` from the process, plus GC numbers logged 10 s after start. Each row was run twice; values are the (near identical) results. Env-var experiments use `DOTNET_*` on the launched process only.
-- Opt-in diagnostics: `WIDGY_MEMLOG=1` logs `MEM ...` to `widgy.log` 10 s after start.
+- Opt-in diagnostics: `URDECK_MEMLOG=1` logs `MEM ...` to `urdeck.log` 10 s after start.
 
 ## Results
 
@@ -31,7 +31,7 @@ Idle CPU (one core = 100%, 30 s window, clock ticking once a second): hardware 0
 1. The managed heap is not the problem: GC heap is 1.5 MB (5 MB committed). GC tuning (gen0size, ConserveMemory, non-concurrent, PGO, tiered compilation) changes nothing measurable; do not add it.
 2. Almost all memory is native. About 100 MB private of the baseline is WPF/milcore/D3D plus the CLR itself. Hardware composition of a 1100x3840 window (`wpfgfx_cor3.dll` render targets, D3D9 driver state) accounts for ~50-60 MB of private bytes; `RenderOptions.ProcessRenderMode = SoftwareOnly` removes it. The widget adds ~24 MB (hardware) or ~13 MB (software): the WriteableBitmap backing the SKElement (1650x825x4 = 5.4 MB physical) plus Skia/typeface caches and libSkiaSharp.
 3. OpenTK / GLWpfControl are copied to the output (SkiaSharp.Views.WPF depends on them) but are NOT loaded at runtime: no OpenTK*, GLWpf or opengl32 module or assembly is present in the process. They only cost disk space.
-4. R2R publishing does not help; the framework is already R2R and Widgy's own code is tiny. Trimming is unsupported for WPF (not tried).
+4. R2R publishing does not help; the framework is already R2R and UrDeck's own code is tiny. Trimming is unsupported for WPF (not tried).
 5. Working set includes shared mapped DLL pages (about 50 MB, "free" when other WPF apps run); private bytes is the fairer number.
 
 ## Is 50 MB realistic?
@@ -40,7 +40,7 @@ An empty WPF window on this machine is 53 MB private / 99 MB working set even in
 
 ## Recommendations (impact vs. risk)
 
-1. **Applied**: `RenderOptions.ProcessRenderMode = SoftwareOnly` (-62 MB private, -24 MB WS; cost ~0.6% of a core while ticking; opt out with `WIDGY_HWRENDER=1`). Low risk, since widgets already render in software.
+1. **Applied**: `RenderOptions.ProcessRenderMode = SoftwareOnly` (-62 MB private, -24 MB WS; cost ~0.6% of a core while ticking; opt out with `URDECK_HWRENDER=1`). Low risk, since widgets already render in software.
 2. Not worth doing: GC settings, TieredPGO, ReadyToRun, ConserveMemory (all measured as no-ops).
 3. Medium effort, unmeasured: cap SKElement bitmap to the widget's real area (already the case) and render at 1.0 DPI for low-detail widgets; each 1650x825 widget is 5.4 MB, so many widgets scale linearly (~13 MB each including caches). Consider sharing typefaces/paints across widgets.
 4. High impact, high effort: replace WPF with a bare Win32 layered/child window plus Skia, or a single SKElement for the whole page instead of one per widget. This is the only route to the < 50 MB proposal target.

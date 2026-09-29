@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/UrDeck.Analyzer/UrDeck.Analyzer.csproj" />
+    <Project Path="src/UrDeck.Core/UrDeck.Core.csproj" />
+    <Project Path="src/UrDeck.Host/UrDeck.Host.csproj" />
+  </Folder>
+  <Folder Name="/widgets/">
+    <Project Path="widgets/UrDeck.Widgets.Clock/UrDeck.Widgets.Clock.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/UrDeck.Analyzer.Tests/UrDeck.Analyzer.Tests.csproj" />
+    <Project Path="tests/UrDeck.Core.Tests/UrDeck.Core.Tests.csproj" />
+  </Folder>
+</Solution>
