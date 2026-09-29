@@ -54,18 +54,21 @@ namespace Widgy.Core.Layout
 
             foreach (var widget in widgets)
             {
-                var clampedCol = Clamp(0, Math.Max(0, widget.Col), 4 - Math.Max(1, widget.Width));
-                var clampedWidth = Clamp(1, Math.Max(1, widget.Width), 4);
-                var clampedHeight = Clamp(1, Math.Max(1, widget.Height), int.MaxValue);
+                // Clamp width first so the column bound (4 - width) is valid.
+                var clampedWidth = Clamp(1, widget.Width, 4);
+                var clampedCol = Clamp(0, widget.Col, 4 - clampedWidth);
+                var clampedRow = Math.Max(0, widget.Row);
+                var clampedHeight = Math.Max(1, widget.Height);
 
-                if (!ValidatePosition(clampedCol, clampedWidth))
+                if (clampedCol != widget.Col || clampedWidth != widget.Width
+                    || clampedRow != widget.Row || clampedHeight != widget.Height)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Warning: Widget {widget.WidgetTypeId} position clamped from ({widget.Col},{widget.Row})[{widget.Width}x{widget.Height}] to ({clampedCol},{widget.Row})[{clampedWidth}x{clampedHeight}]");
+                    System.Diagnostics.Trace.TraceWarning($"Widget {widget.WidgetTypeId} position clamped from ({widget.Col},{widget.Row})[{widget.Width}x{widget.Height}] to ({clampedCol},{clampedRow})[{clampedWidth}x{clampedHeight}]");
                 }
 
                 var pixelPos = new System.Drawing.Point(
                     (int)(clampedCol * ColumnWidth),
-                    (int)(widget.Row * RowHeight));
+                    (int)(clampedRow * RowHeight));
                 var pixelSize = new Size(
                     (int)(clampedWidth * ColumnWidth),
                     (int)(clampedHeight * RowHeight));
