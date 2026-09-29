@@ -8,8 +8,8 @@
 
   <ItemGroup>
     <!-- Widgy.Core and SkiaSharp are provided by the host at runtime; don't copy them next to the plugin. -->
-    <ProjectReference Include="..\Widgy.Core\Widgy.Core.csproj" Private="false" />
-    <ProjectReference Include="..\Widgy.Analyzer\Widgy.Analyzer.csproj">
+    <ProjectReference Include="..\..\src\Widgy.Core\Widgy.Core.csproj" Private="false" />
+    <ProjectReference Include="..\..\src\Widgy.Analyzer\Widgy.Analyzer.csproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <OutputItemType>Analyzer</OutputItemType>
     </ProjectReference>

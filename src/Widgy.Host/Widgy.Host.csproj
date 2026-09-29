@@ -16,7 +16,7 @@
     <ItemGroup>
         <ProjectReference Include="..\Widgy.Core\Widgy.Core.csproj" />
         <!-- Build the built-in plugin with the host, but load it from plugins/ at runtime (not referenced). -->
-        <ProjectReference Include="..\Widgy.Widgets.Clock\Widgy.Widgets.Clock.csproj">
+        <ProjectReference Include="..\..\widgets\Widgy.Widgets.Clock\Widgy.Widgets.Clock.csproj">
             <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
             <Private>false</Private>
         </ProjectReference>
@@ -29,7 +29,7 @@
 
     <!-- Drop built-in plugin assemblies into $(OutDir)plugins so the host discovers them like any third-party plugin. -->
     <Target Name="CopyBuiltInPlugins" AfterTargets="Build">
-        <MSBuild Projects="..\Widgy.Widgets.Clock\Widgy.Widgets.Clock.csproj" Targets="GetTargetPath" Properties="Configuration=$(Configuration)">
+        <MSBuild Projects="..\..\widgets\Widgy.Widgets.Clock\Widgy.Widgets.Clock.csproj" Targets="GetTargetPath" Properties="Configuration=$(Configuration)">
             <Output TaskParameter="TargetOutputs" ItemName="_WidgyPluginAssembly" />
         </MSBuild>
         <Copy SourceFiles="@(_WidgyPluginAssembly)" DestinationFolder="$(OutDir)plugins" SkipUnchangedFiles="true" />

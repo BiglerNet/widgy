@@ -16,8 +16,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Widgy.Core\Widgy.Core.csproj" />
-    <ProjectReference Include="..\Widgy.Analyzer\Widgy.Analyzer.csproj" />
+    <ProjectReference Include="..\..\src\Widgy.Core\Widgy.Core.csproj" />
+    <ProjectReference Include="..\..\src\Widgy.Analyzer\Widgy.Analyzer.csproj" />
   </ItemGroup>
 
 </Project>
