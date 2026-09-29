@@ -2,19 +2,22 @@
 
 ## Context
 
-The user wants a replacement for HYTE Nexus — a lightweight, beautiful, extensible widget dashboard for a dedicated secondary monitor (1100×3840 vertical touch panel). The workspace is completely empty. No legacy code constrains the architecture. The primary monitor may run games, IDEs, browsers, etc. simultaneously, so Widgy must consume minimal CPU and memory.
+The user wants a replacement for HYTE Nexus — a lightweight, beautiful, extensible widget dashboard for a dedicated secondary monitor (1100×3840 vertical touch panel). The primary monitor may run games, IDEs, browsers, etc. simultaneously, so Widgy must consume minimal CPU and memory.
 
-The target platform is Windows only, using .NET 8. The widget system must be extensible via plugin DLLs. Each widget controls its own refresh rate. The layout is a fixed 4-column grid that adapts to any monitor resolution.
+The target platform is Windows only, using .NET 10. The widget system is extensible via plugin DLLs. Each widget controls its own refresh rate. The layout is a fixed 4-column grid that adapts to any monitor resolution.
+
+This document was synced with the implementation after the first working build; where the code diverged from the original plan, the code is the source of truth and the decision text below reflects it.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Widget SDK with metadata-driven plugin system (data annotations + code analyzer)
+- Widget SDK with metadata-driven plugin system (data annotations + code analyzer + runtime validation)
 - Dynamic 4-column grid layout engine that works at any resolution
-- WPF host with SkiaSharp canvas for GPU-accelerated, visually stunning rendering
+- WPF host with SkiaSharp rendering for high-quality 2D widgets
 - Clock widget proving the full end-to-end pipeline
-- Configuration system (JSON) for persisting layout, pages, themes
-- Plugin hot-reload detection (file watcher on `plugins/` directory)
+- Configuration system (JSON) for persisting layout, pages, themes, target monitor
+- Plugin and config hot-reload
+- Memory footprint under 50MB (open — see Risks)
 
 **Non-Goals:**
 - Editor UI (drag-to-place, property grid, widget palette) — reserved for Phase 2
@@ -26,146 +29,170 @@ The target platform is Windows only, using .NET 8. The widget system must be ext
 
 ## Decisions
 
-### Decision 1: Framework — WPF + SkiaSharp (not WPF/DirectX, not Avalonia, not Uno)
+### Decision 0: Runtime and target frameworks — .NET 10
 
-**Chosen:** WPF host with `SkiaSharp` and `SkiaSharp.Views.WPF` canvas surface.
+| Project | TargetFramework | Why |
+|---|---|---|
+| `Widgy.Core`, `Widgy.Widgets.*` plugins | `net10.0` | The SDK has no Windows dependency; only SkiaSharp. |
+| `Widgy.Host` | `net10.0-windows10.0.19041.0` | The Windows SDK version suffix is required: `SkiaSharp.Views.WPF` 3.119.4 only ships its .NET build for that TFM. Plain `net10.0-windows` silently falls back to the `net48` build of the package. |
+| `Widgy.Analyzer` | `netstandard2.0` | Roslyn analyzers must target netstandard2.0. |
+| Test projects | `net10.0-windows10.0.19041.0` | Same TFM as the host. |
+
+SkiaSharp and SkiaSharp.Views.WPF are pinned to 3.119.4.
+
+### Decision 1: Framework — WPF + SkiaSharp, one `SKElement` per widget
+
+**Chosen:** WPF host; each widget gets its own `SkiaSharp.Views.WPF.SKElement` placed on a WPF `Canvas` at its grid rectangle. There is no page-level canvas.
 
 **Rationale:**
-- WPF provides the window management, plug-in loading (via `System.Reflection`), and configuration infrastructure with ~50MB baseline memory.
-- SkiaSharp provides the 2D canvas for all widget rendering with minimal memory overhead (~30MB additional) and excellent visual quality (gradients, anti-aliasing, text rendering, circles/gauges).
-- `SkiaSharp.Views.WPF` provides a WPF-compatible canvas control that renders directly to the GPU — no rendering bridge overhead.
-- Alternative WPF/DirectX (D2D1W) adds complexity without benefit for 2D widget rendering.
-- Alternative Avalonia adds an unnecessary abstraction layer and ~10-20MB more memory.
-- Alternative Uno/WASM is overkill for Windows-only with larger startup footprint.
+- WPF provides window management and per-monitor DPI handling.
+- SkiaSharp provides the 2D canvas for widget rendering (gradients, anti-aliasing, text, gauges).
+- `SKElement` rasterizes in software into a `WriteableBitmap` at the monitor's physical resolution (it is not GPU-accelerated; the original "GPU-accelerated" claim was wrong for `SKElement`). Because each widget owns its element, a widget cannot draw outside its cell, and an idle widget costs nothing between its own timer ticks.
+- Alternative WPF/DirectX adds complexity without benefit for 2D widget rendering. Avalonia and Uno were rejected as unnecessary abstraction/footprint.
 
-### Decision 2: Widget Metadata — Data Annotations + Code Analyzer (not pure interface, not config-file driven)
+### Decision 2: Widget contract — non-generic `IWidget` + `IWidget<TConfig>` + `Widget<TConfig>` base
 
-**Chosen:** C# data attributes + Roslyn analyzer for compile-time validation.
+**Chosen:**
 
-**Rationale:**
-- Data annotations provide the simplest authoring experience:
-  ```csharp
-  [Widget("Clock", "Display current time")]
-  [WidgetSize(4, 2)]
-  [RefreshOnTick(1, TimeUnit.Seconds)]
-  public class ClockWidget : Widget<ClockConfig> { }
-  ```
-- Roslyn analyzer catches errors at compile time (no runtime reflection failures).
-- Alternative: Pure interface-based (e.g., `IWidget.Config`) works but requires more code per widget — worse ergonomics.
-- Alternative: Config-file driven (e.g., `widget.json`) adds serialization complexity and runtime error paths.
-
-### Decision 3: Refresh Strategy — Per-widget attribute (not global, not hardcoded)
-
-**Chosen:** Each widget declares its own refresh policy via attributes:
-- `[RefreshOnTick(seconds)]` — fire render callback every N seconds (Clock: 1s, Weather: 300s)
-- `[RefreshAdaptive(minMs, maxMs)]` — smart throttle based on system load (charts, graphs)
-- `[RefreshOnEvent("eventKey")]` — event-driven, only renders when data arrives (PerfMonitor)
-
-**Rationale:** Different widgets have fundamentally different data update patterns. Forcing all widgets into a global update loop would waste CPU on static widgets (clock at 60fps = unnecessary). Per-widget policies allow the runtime to only schedule timer subscriptions for widgets that actually need them.
-
-### Decision 4: Grid Layout — Resolution-agnostic grid units (not pixel-based, not percentage-based)
-
-**Chosen:** Widget size in grid units (1-4 columns, 1-N rows). The layout engine converts to pixels at render time based on the current monitor resolution:
 ```csharp
-GridLayoutManager(screenWidth, screenHeight)
-  ColumnWidth = screenWidth / 4;
-  RowHeight = ColumnWidth; // Square cells
-  PixelPosition(widget) = (widget.Col * ColumnWidth, widget.Row * RowHeight);
-```
-
-**Rationale:**
-- Grid units make widgets resolution-independent: a 4×2 widget always fills the full panel width and occupies 2 rows of display data, regardless of whether the panel is 1100px wide or 1920px wide.
-- Pixel-based sizes would need hardcoded resolution presets or complex DPI scaling.
-- Percentage-based sizes work but grid units are more intuitive for widget authors: "this widget takes 4 columns" maps directly to the visual layout.
-
-### Decision 5: Plugin Loading — Assembly.LoadFrom from `plugins/` directory (not reflection-only, not MSBuild)
-
-**Chosen:** At startup (and on file change):
-```csharp
-foreach (var dll in Directory.EnumerateFiles("plugins", "*.dll"))
+public interface IWidget
 {
-    var assembly = Assembly.LoadFrom(dll);
-    foreach (var type in assembly.GetTypes())
-    {
-        if (type.IsAbstract) continue;
-        var widgetAttr = (WidgetAttribute?)type.GetCustomAttribute(typeof(WidgetAttribute));
-        if (widgetAttr != null)
-        {
-            registry.Register(widgetAttr, type);
-        }
-    }
+    string Name { get; }  string Description { get; }  string Category { get; }
+    Size[] SupportedSizes { get; }
+    Type ConfigType { get; }
+    WidgetConfig Config { get; }
+    void Configure(WidgetConfig config);
+    Task UpdateAsync(CancellationToken ct);   // data refresh, off the render path
+    void Render(WidgetRenderContext context); // synchronous, UI thread, must be fast
 }
+public interface IWidget<TConfig> : IWidget { new TConfig Config { get; } TConfig DefaultConfig { get; } }
 ```
 
-**Rationale:** Simple, no external dependencies, fast (<100ms typically). `Assembly.LoadFrom` avoids GAC conflicts. File watcher (`FileSystemWatcher`) enables hot-reload during development.
+Authors derive from `Widget<TConfig>`, whose `Name`/`Description`/`Category`/`SupportedSizes` default from the attributes, so a widget typically overrides only `Render`.
 
-### Decision 6: Configuration — JSON with hot-reload (not XML, not binary)
+**Rationale:** The host must drive widgets of unknown config types, so it talks to a non-generic interface; the generic layer gives authors typed config. Splitting `UpdateAsync` (may do I/O) from `Render` (synchronous, canvas valid only during the call) keeps slow data fetches off the UI thread and rendering deterministic. The earlier `RenderAsync(SKCanvas, ...)` design was dropped: an async render cannot safely hold a canvas that is only valid during the paint callback.
 
-**Chosen:** `widgy-config.json` in the application directory (or `~/.widgy/` on Windows). JSON is human-editable, well-supported in .NET 8 via `System.Text.Json`, and supports hot-reload via file watcher.
+### Decision 3: Widget metadata — Data annotations + Code Analyzer + runtime descriptor validation
 
-**Schema:**
+**Chosen:** C# attributes, validated at compile time by a Roslyn analyzer (WIDGY001–005) and again at load time by the plugin loader.
+
+```csharp
+[Widget("Clock", "Display current time", Id = "widgy.widgets.clock")]
+[WidgetSize(4, 2)]
+[RefreshOnTick(1, TimeUnit.Seconds)]
+public class ClockWidget : Widget<ClockConfig> { ... }
+```
+
+- `Id` is the stable type id used as `typeId` in `widgy-config.json`; it falls back to `Name` when omitted. Authors should set it explicitly.
+- The loader builds a `WidgetDescriptor` per type (id, metadata, config type, sizes, refresh strategy + interval) and **rejects** types missing `[Widget]`, missing `[WidgetSize]`, having a number of refresh strategies other than exactly one, lacking a public parameterless constructor, or whose config type cannot be determined. Rejections are logged and do not stop other plugins from loading.
+
+**Rationale:** Compile-time errors give the best authoring feedback; the runtime check protects the host from plugins built without the analyzer.
+
+### Decision 4: Refresh strategy — per-widget attribute, per-widget timer
+
+Each widget declares its refresh policy via attributes:
+- `[RefreshOnTick(interval, unit)]` — implemented. The host starts a `DispatcherTimer` with that interval for the widget's `SKElement`; each tick runs `UpdateAsync` then invalidates the element.
+- `[RefreshAdaptive(minMs, maxMs)]` — **partially implemented**: currently behaves like a tick at `MinMs`. Scaling between `MinMs` and `MaxMs` based on load is TODO (tracked in tasks.md).
+- `[RefreshOnEvent("eventKey")]` — **not implemented yet**: the widget is rendered once on load; there is no event channel/bus, so nothing re-triggers it. Tracked in tasks.md.
+
+There is no global render loop: each widget's `SKElement` repaints only on its own timer (or on resize/expose), so an idle dashboard costs ~0 CPU (measured ~0.03% idle).
+
+### Decision 5: Grid layout — resolution-agnostic grid units
+
+**Chosen:** Widget size in grid units (1–4 columns, 1–N rows). `GridLayoutManager` converts to pixels:
+```
+ColumnWidth = screenWidth / 4
+RowHeight   = ColumnWidth          // square cells
+Pixel(x, y) = (col * ColumnWidth, row * RowHeight)
+Pixel(w, h) = (width * ColumnWidth, height * RowHeight)
+```
+Layout is computed in device-independent pixels (DIPs) from the window size; each `SKElement` then renders at the monitor's physical resolution.
+
+**Clamping:** width is clamped to 1–4 first, then col to `0..(4 - width)`, row to ≥ 0, height to ≥ 1; a warning is logged when anything is clamped.
+
+**Rationale:** Grid units make widgets resolution-independent: a 4×2 widget fills the panel width and is two square cells tall whether the panel is 1100px or 1920px wide. Because the row height is derived from the width, tall panels have many rows and wide/short monitors have few.
+
+### Decision 6: Plugin loading — collectible `AssemblyLoadContext` with shadow copies
+
+**Chosen:** Each plugin DLL is copied to `%TEMP%/widgy-shadow/<pid>/<guid>/` (with `.pdb`/`.deps.json` siblings) and loaded from that copy into its own collectible `AssemblyLoadContext` (`PluginLoadContext`). `Widgy.Core`, SkiaSharp and the framework resolve from the default context, so `IWidget`/`WidgetConfig` type identity is shared between host and plugin; a plugin's own dependencies resolve from the plugin folder.
+
+The `plugins/` directory is watched (`FileSystemWatcher`, 500ms debounce). On change the loader unloads all contexts, clears the registry, reloads, and raises `PluginsChanged`; the host rebuilds the page. Stale shadow directories from dead processes are cleaned at startup. The built-in Clock plugin is copied to `plugins/` by the host build (an MSBuild target), so it is discovered like any third-party plugin.
+
+**Rationale:** `Assembly.LoadFrom` (the original plan) locks the DLL so it cannot be rebuilt while Widgy runs, and can never be unloaded or replaced. A collectible ALC plus shadow copy makes plugin development a live loop and lets a plugin be removed or restored while running.
+
+**Known caveat:** unit tests show unloaded contexts are collectible off-screen (with a short wait for `System.Text.Json`'s accessor cache to expire). In the live WPF host an unloaded context may not be collected yet — something in the host may still reference plugin types. This is under investigation; the loader logs a warning if a context is still alive 4s after unload.
+
+### Decision 7: Configuration — JSON with hot-reload, widget settings as extra properties
+
+**Chosen:** `widgy-config.json` next to the executable. Widget-specific settings are extra properties on the widget's JSON object (e.g. `"format": "12h"`), captured by `[JsonExtensionData]` on `WidgetConfig` (so they round-trip on save) and converted to the widget's concrete config type (e.g. `ClockConfig`) when the widget is created.
+
 ```json
 {
   "pages": [
-    {
-      "name": "Primary",
+    { "name": "Default",
       "widgets": [
-        {
-          "type": "widgy.widgets.clock",
-          "col": 0,
-          "row": 0,
-          "width": 4,
-          "height": 2
-        }
-      ],
-      "background": { "type": "static", "path": "" }
-    }
+        { "typeId": "widgy.widgets.clock", "col": 0, "row": 0, "width": 4, "height": 2,
+          "format": "24h", "showDate": true, "fontSize": 1.0 }
+      ] }
   ],
   "activePage": 0,
-  "dock": [
-    { "type": "app", "command": "explorer.exe" },
-    { "type": "url", "url": "https://github.com" }
-  ],
-  "theme": "default-dark"
+  "dock": [],
+  "theme": "default-dark",
+  "monitorName": "tallest"
 }
 ```
 
-### Decision 7: Performance Model — Idle = Zero CPU (never tick everything)
+`monitorName` is `"primary" | "tallest" | "widest" | "largest"` or a device name such as `"DISPLAY1"`; a 1-based `monitor` index is the fallback when the name matches nothing, and primary is the final fallback.
 
-**Chosen:** The runtime only schedules timers for widgets that declare `[RefreshOnTick]`. Widgets that declare `[RefreshOnEvent]` listen on a `Channel<T>` or `Action` delegate. The Clock widget subscribes to a 1-second timer; the Weather widget (if present) subscribes to a 5-minute timer. No global update loop exists.
+`ConfigStore` reloads on file change (1s debounce), retries when the file is locked by an editor, keeps the last good config when the new file fails to parse, ignores its own saves (2s window), and saves on exit. `dock`, `theme` and `background` are persisted but not yet consumed by the host.
 
-```
-┌───────────┐   Timer subscription per widget type:
-│  Runtime   │
-│  Scheduler │   → Clock: 1s timer → Clock.Render()
-│            │   → Weather: 5m timer → Weather.Render()
-│   Timer    │   → PerfMonitor: Channel<float> → Perf.Render()
-│   Manager  │   → MediaControl: 0.5s timer
-└───────────┘
-```
+### Decision 8: Window and monitor handling — physical pixels, exact cover
+
+- The process is PerMonitorV2 DPI aware (`app.manifest`).
+- Monitors are enumerated with Win32 (`EnumDisplayMonitors`/`GetMonitorInfo`) in physical pixels.
+- The window is positioned with `SetWindowPos` to exactly cover the target monitor's **full bounds** (not the work area), and re-applied after `DpiChanged` because WPF rescales the window when it crosses monitors of different DPI.
+- The host re-selects and re-covers the target on display-settings changes, on resume from sleep (re-checking after 1.5s and 5s, because monitors wake in arbitrary order), and on config changes. Layout rebuilds are coalesced.
+- Escape closes the window.
+
+When the configured monitor is absent the host currently just falls back to the primary monitor; a proper story is in the `display-targeting` change.
+
+### Decision 9: Fault isolation and diagnostics
+
+- A widget whose `Render` throws is drawn as a visible error tile (`WidgetPainter.RenderSafely`) instead of blanking or crashing the host; an `UpdateAsync` failure is logged and rendering continues.
+- All diagnostics go through `WidgyLog` (file `widgy.log` next to the executable plus debug output); there are no `Console.Write` calls. (`GridLayoutManager` still emits its clamp warning via `Trace.TraceWarning`, so it does not reach `widgy.log`.)
+- `--snapshot out.png [--size WxH]` renders the active page off-screen through `PageRenderer` using the same layout and widget code, defaulting to the target monitor's resolution; it exists for verification and docs.
+
+### Decision 10: Widget styling belongs in a theme engine (future)
+
+The Clock currently draws a rounded "panel card" (`ThemeColors.PanelBackgroundColor`, small inset/radius) behind its text, and picks its own fonts (Segoe UI Semibold time, Segoe UI Light date at ~80% alpha). The user approved the card over the earlier "transparent background" wording. Styling decisions like this should not live in each widget: they should move into a shared theme/style engine that widgets consume through `WidgetRenderContext` (proposed as the `theme-engine` change).
+
+### Decision 11: Performance model — idle = near-zero CPU
+
+The runtime only starts timers for widgets that declare a timer-based refresh. No global update loop exists. Measured idle CPU is ~0.03%.
 
 ## Risks / Trade-offs
 
 | Risk | Mitigation |
 |------|-----------|
-| SkiaSharp at 1100×3840 may be heavy on GPU for complex widgets | SkiaSharp is highly optimized for 2D; gauge charts render in <0.5ms. Monitor with simple benchmarks. |
-| Assembly.LoadFrom can cause loading context issues in .NET | Use `AssemblyLoadContext` for sandboxing plugins, or stick to `Assembly.LoadFrom` which is standard for this pattern in .NET Framework/WPF apps. |
-| Grid layout with square cells may look odd on non-square monitors | RowHeight = ColumnWidth is the natural choice for a 4-column grid. On a 1100px-wide panel, ColumnWidth = 275px, RowHeight = 275px. This is exactly what the user showed in their design. |
-| Hot-reload via FileSystemWatcher may miss rapid saves | Debounce file events with a 500ms delay. On the first save, the widget reloads; subsequent saves within 500ms coalesce. |
-| JSON config with hundreds of widgets may be slow to parse | Use `System.Text.Json` with `Utf8JsonReader` streaming for large configs. Typical configs have <50 widgets, so this is rarely a concern. |
+| **Memory goal (< 50MB) is not met.** The Release build measures ~139 MB working set / ~125 MB private with a single Clock widget; the WPF baseline is large. | Open question. An investigation is in progress (findings to land in `docs/perf/memory-investigation.md`). The goal is kept as a target, not claimed as achieved. |
+| Unloaded plugin contexts may not be collected in the live WPF host | Under investigation; the loader logs a warning when a context is still alive after unload. Shadow directories are cleaned on next start regardless. |
+| `SKElement` is software-rasterized at physical resolution; many large widgets at 1100×3840 could get heavy | Widgets repaint only on their own timer; measure before adding animated widgets. A GPU-backed surface could be revisited. |
+| Grid with square cells may look odd on non-square monitors | RowHeight = ColumnWidth is the natural choice for a 4-column grid; verified on the 1100×3840 panel (275px cells) and after retargeting to a 1080×1920 monitor. |
+| Hot-reload via `FileSystemWatcher` may miss or duplicate rapid saves | Debounce (500ms plugins, 1s config); config keeps last good state on parse errors. |
+| Monitor identity by `DISPLAYn` device name is unstable across re-plugs/reboots | Addressed in the `display-targeting` change. |
+| JSON config with hundreds of widgets may be slow to parse | Typical configs have < 50 widgets; not a concern in practice. |
 
-## Migration Plan
+## Build and Layout
 
-No migration plan needed — this is a fresh codebase. The build process is:
-1. Build `Widgy.Core` (widget SDK)
-2. Build `Widgy.Analyzer` (Roslyn)
-3. Build `Widgy.Host` (WPF shell, depends on Core)
-4. Build `Widgy.Widgets.Clock` (clock plugin, depends on Core)
-5. Copy plugin DLL to `Widgy.Host/bin/Debug/net8.0-windows/plugins/` at build time
-6. Run `Widgy.Host`
+1. `dotnet build widgy.sln -c Release` builds everything; the host build copies the Clock plugin DLL to `Widgy.Host/bin/<cfg>/<tfm>/plugins/`.
+2. The source default config is `Widgy.Host/widgy-config.json` (tracked in the repository); the build copies it (PreserveNewest) next to the executable, and that runtime copy under `bin/` is ignored by version control.
+3. Run `Widgy.Host`.
 
 ## Open Questions
 
-1. **Touch support timing**: Will touch input work on the WPF window directly, or do individual widgets need touch handlers? (Answer: Phase 4 — deferred)
-2. **Font rendering for 4K displays**: Should we use `TextRenderType.GdiClassic` or `TextRenderType.ClearType`? (Answer: We'll use default WPF text rendering — it's already ClearType by default. Test at 1100px width.)
-3. **Plugin signing**: Should widgets be digitally signed? (Answer: Phase 3 — deferred. No signing for initial implementation.)
+1. **Touch support timing**: Will touch input work on the WPF window directly, or do individual widgets need touch handlers? (Deferred to Phase 4.)
+2. **Font rendering**: Skia text is rendered with grayscale/subpixel antialiasing into the element's bitmap (not WPF ClearType). Acceptable at the panel's density; revisit if fringing is visible.
+3. **Plugin signing**: Should widgets be digitally signed? (Deferred to Phase 3; none for now.)
+4. **Memory**: How close to the 50MB goal can a WPF host get? (Open; see Risks.)
+5. **Event bus**: Design of the channel behind `[RefreshOnEvent]` (who publishes, threading, lifetime across plugin reload). (Open; tracked in tasks.md.)
+6. **Adaptive refresh**: What "system load" signal drives `[RefreshAdaptive]`? (Open; tracked in tasks.md.)
