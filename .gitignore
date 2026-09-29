@@ -1,0 +1,32 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+*.pdb
+artifacts/
+TestResults/
+
+# IDE / tooling
+.vs/
+.idea/
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+node_modules/
+
+# NuGet
+*.nupkg
+packages/
+
+# Runtime / user-local
+widgy.log
+/plugins/
+
+# Agent session logs and scratch captures
+kilo-session.json
+openspec-apply-session.jsonl
+pi-session-*.html
+screenshot.png
+*.snapshot.png

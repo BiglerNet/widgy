@@ -1,0 +1,26 @@
+{
+  "pages": [
+    {
+      "name": "Default",
+      "widgets": [
+        {
+          "typeId": "Clock",
+          "col": 0,
+          "row": 0,
+          "width": 4,
+          "height": 2,
+          "parameters": {},
+          "isVisible": true,
+          "format": "24h",
+          "showDate": true,
+          "fontSize": 1.0
+        }
+      ]
+    }
+  ],
+  "activePage": 0,
+  "dock": [],
+  "theme": "default-dark",
+  "monitor": 3,
+  "monitorName": "tallest"
+}

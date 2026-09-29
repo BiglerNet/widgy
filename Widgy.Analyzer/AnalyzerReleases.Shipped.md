@@ -1,0 +1,1 @@
+; Shipped in Widgy.Analyzer
