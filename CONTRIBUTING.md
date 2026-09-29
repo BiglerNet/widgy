@@ -24,6 +24,18 @@ Agents and humans follow the same rules; the short version for agents is in [AGE
 `main` is protected by a ruleset: pull request required, required checks `build` and `pr-title`, linear history, no
 force pushes or deletion, squash merges only.
 
+## Licensing
+
+- See the license map in the [README](README.md#license). The default is GPL-3.0-or-later with the
+  [plugin exception](PLUGIN-EXCEPTION.md); `src/UrDeck.Analyzer` (and the future `UrDeck.Sdk`) is MIT.
+- Every C# file starts with an SPDX header (`SPDX-License-Identifier` plus a copyright line). It is enforced by
+  `.editorconfig` (IDE0073), so `dotnet format` adds it to new files; the analyzer directory gets the MIT header
+  automatically. Put a new project's license in its csproj (`PackageLicenseExpression`) if it differs from the default.
+- By contributing you agree that your contribution is licensed under the license of the directory you change
+  (inbound = outbound). There is no CLA or DCO for now.
+- Code samples in the docs (README, this file) are MIT-licensed, so widget authors can copy them freely. Do not copy code
+  from the official widgets into a differently licensed widget: use the samples or the widget template instead.
+
 ## Code standards
 
 - Enforced by `.editorconfig` and the build (`dotnet format urdeck.slnx --verify-no-changes --severity warn` in CI):
@@ -32,6 +44,7 @@ force pushes or deletion, squash merges only.
 - Shared MSBuild settings are in `Directory.Build.props`; package versions are only in `Directory.Packages.props`.
 - Tests: xUnit in `tests/`. `UrDeck.Core` has a line-coverage floor (currently 65%, enforced in CI; raise it when
   coverage improves, never lower it to make a PR pass).
+- New files get the license header automatically via `dotnet format`.
 - Comments explain why, not what. Match the surrounding code.
 
 ## Writing a widget

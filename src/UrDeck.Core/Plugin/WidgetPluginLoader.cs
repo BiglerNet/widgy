@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Patrick Bigler
+
 using System.Reflection;
 using UrDeck.Core.Config;
 using UrDeck.Core.Diagnostics;

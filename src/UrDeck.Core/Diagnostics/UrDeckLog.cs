@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Patrick Bigler
+
 namespace UrDeck.Core.Diagnostics;
 
 /// <summary>Minimal file + debug-output logger. Writes to urdeck.log next to the executable.</summary>
