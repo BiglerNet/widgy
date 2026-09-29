@@ -13,7 +13,7 @@ change under `openspec/changes/`. Work one item per session.
    it doesn't exist yet; `openspec validate --all --strict` must pass).
 2. Implement against `tasks.md`, ticking tasks only when verified.
 3. Verify:
-   - `dotnet build widgy.sln` (0 warnings) and `dotnet test widgy.sln`.
+   - `dotnet build widgy.slnx` (0 warnings) and `dotnet test widgy.slnx`. `AGENTS.md` has the full command list.
    - Rendering without a screen: `Widgy.Host.exe --snapshot out.png --size 1100x3840` (from the host's bin folder).
    - On the real panel: launch detached (the app otherwise blocks the shell), read `widgy.log` next to the exe.
      It logs monitors, actual vs. target window bounds, placed widgets, reloads and warnings.
@@ -43,8 +43,9 @@ everything else should be fine on Sonnet.
 
 **Why:** the repo grew organically; contributors (human and agent) need a predictable layout and enforced style.
 **Model:** Sonnet.
+**Status:** done except the items marked open below (license, placeholder icon).
 
-Proposed layout (monorepo; first-party widgets live here, community widgets in their own repos):
+Layout (done; monorepo; first-party widgets live here, community widgets in their own repos):
 
 ```
 src/
@@ -60,18 +61,18 @@ openspec/
 ```
 
 Tasks:
-- Move projects; keep the host build copying first-party widgets into `plugins/`. Consider `widgy.slnx`.
-- `Directory.Build.props`: shared TFMs, `Nullable`, `ImplicitUsings`, `LangVersion`, `TreatWarningsAsErrors`,
+- [x] Move projects; the host build still copies first-party widgets into `plugins/`. Solution is now `widgy.slnx`.
+- [x] `Directory.Build.props`: shared TFMs, `Nullable`, `ImplicitUsings`, `LangVersion`, `TreatWarningsAsErrors`,
   `EnforceCodeStyleInBuild`. `Directory.Packages.props` for central package versions (SkiaSharp 3.119.4, xunit, Roslyn).
-- `.editorconfig`: file-scoped namespaces (convert existing block namespaces), `var` usage, naming (`_camelCase`
+- [x] `.editorconfig`: file-scoped namespaces (convert existing block namespaces), `var` usage, naming (`_camelCase`
   fields), brace/newline rules, CRLF handling consistent with `.gitattributes`. Run `dotnet format` once to apply.
-- Test coverage with coverlet (`dotnet test --collect:"XPlat Code Coverage"`); set a floor for Widgy.Core.
-- `AGENTS.md` (build/test/verify commands, conventions, the Windows/WPF gotchas above; `CLAUDE.md` can point to it).
-- `CONTRIBUTING.md`: move the widget-authoring section out of README; add performance budgets (item 4) and the
+- [x] Test coverage with coverlet (`dotnet test tests/Widgy.Core.Tests -p:CollectCoverage=true`); floor for Widgy.Core is 65% line (measured 70.6%).
+- [x] `AGENTS.md` (build/test/verify commands, conventions, the Windows/WPF gotchas above; `CLAUDE.md` can point to it).
+- [x] `CONTRIBUTING.md`: move the widget-authoring section out of README; add performance budgets (item 4) and the
   review checklist.
-- GitHub Actions CI on `windows-latest`: build, test, `dotnet format --verify-no-changes`, `openspec validate --all --strict`.
-- Decide with the owner: license; product name is not final, so keep the name easy to change (namespaces, exe name).
-- Placeholder app icon (task 9.1/9.2 of `widgy-framework`); final branding deferred.
+- [x] GitHub Actions CI on `windows-latest`: build, test, `dotnet format --verify-no-changes`, `openspec validate --all --strict`.
+- [ ] Decide with the owner: license; product name is not final, so keep the name easy to change (namespaces, exe name).
+- [ ] Placeholder app icon (task 9.1/9.2 of `widgy-framework`); final branding deferred.
 
 ### Git workflow and GitHub maintenance
 

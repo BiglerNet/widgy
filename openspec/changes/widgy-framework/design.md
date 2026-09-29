@@ -120,7 +120,7 @@ The `plugins/` directory is watched (`FileSystemWatcher`, 500ms debounce). On ch
 
 **Rationale:** `Assembly.LoadFrom` (the original plan) locks the DLL so it cannot be rebuilt while Widgy runs, and can never be unloaded or replaced. A collectible ALC plus shadow copy makes plugin development a live loop and lets a plugin be removed or restored while running.
 
-**WPF pinning (resolved):** WPF's `MS.Internal.*.SafeSecurityHelper` keeps a static, never-evicted assembly cache that rooted collectible plugin assemblies (found via `gcroot` on the plugin's `LoaderAllocator`). On `PluginsChanged` the host disposes widget views and evicts collectible assemblies from those caches (`Widgy.Host/WpfAssemblyCache.cs`, best-effort reflection on WPF internals). `WidgetConfig.ToConcrete` uses a private System.Text.Json resolver so the shared options cache doesn't pin plugin config types, and the loader nudges STJ's ~1s accessor cache before checking collection. Verified live: the old context is collected ~1.9s after unload.
+**WPF pinning (resolved):** WPF's `MS.Internal.*.SafeSecurityHelper` keeps a static, never-evicted assembly cache that rooted collectible plugin assemblies (found via `gcroot` on the plugin's `LoaderAllocator`). On `PluginsChanged` the host disposes widget views and evicts collectible assemblies from those caches (`src/Widgy.Host/WpfAssemblyCache.cs`, best-effort reflection on WPF internals). `WidgetConfig.ToConcrete` uses a private System.Text.Json resolver so the shared options cache doesn't pin plugin config types, and the loader nudges STJ's ~1s accessor cache before checking collection. Verified live: the old context is collected ~1.9s after unload.
 
 ### Decision 7: Configuration — JSON with hot-reload, widget settings as extra properties
 
@@ -184,8 +184,8 @@ The runtime only starts timers for widgets that declare a timer-based refresh. N
 
 ## Build and Layout
 
-1. `dotnet build widgy.sln -c Release` builds everything; the host build copies the Clock plugin DLL to `Widgy.Host/bin/<cfg>/<tfm>/plugins/`.
-2. The source default config is `Widgy.Host/widgy-config.json` (tracked in the repository); the build copies it (PreserveNewest) next to the executable, and that runtime copy under `bin/` is ignored by version control.
+1. `dotnet build widgy.slnx -c Release` builds everything; the host build copies the Clock plugin DLL to `src/Widgy.Host/bin/<cfg>/<tfm>/plugins/`.
+2. The source default config is `src/Widgy.Host/widgy-config.json` (tracked in the repository); the build copies it (PreserveNewest) next to the executable, and that runtime copy under `bin/` is ignored by version control.
 3. Run `Widgy.Host`.
 
 ## Open Questions

@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Required status check: build, format, tests, coverage floor and OpenSpec validation.
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Restore
+        run: dotnet restore widgy.slnx
+
+      - name: Format
+        run: dotnet format widgy.slnx --no-restore --verify-no-changes --severity warn
+
+      - name: Build
+        run: dotnet build widgy.slnx -c Release --no-restore
+
+      - name: Test
+        run: dotnet test widgy.slnx -c Release --no-build
+
+      - name: Coverage floor (Widgy.Core)
+        run: dotnet test tests/Widgy.Core.Tests -c Release --no-build -p:CollectCoverage=true
+
+      - name: Validate OpenSpec
+        run: npx --yes @fission-ai/openspec@1.7.0 validate --all --strict
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage
+          path: artifacts/coverage/
+          if-no-files-found: ignore
+
+  # Required status check: the PR title becomes the squash commit title, so it must be a conventional commit.
+  pr-title:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            test
+            perf
+            refactor
+            chore
+            ci
+            build
+            revert

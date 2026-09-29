@@ -1,10 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <PropertyGroup Condition="'$(CollectCoverage)' == 'true'">
+    <Include>[Widgy.Core]*</Include>
+    <Threshold>65</Threshold>
+    <ThresholdType>line</ThresholdType>
+    <CoverletOutputFormat>cobertura</CoverletOutputFormat>
+    <CoverletOutput>$(MSBuildThisFileDirectory)../../artifacts/coverage/</CoverletOutput>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <!-- Line-coverage floor for Widgy.Core. Run: dotnet test tests/Widgy.Core.Tests -p:CollectCoverage=true -->
+    <PackageReference Include="coverlet.msbuild" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
