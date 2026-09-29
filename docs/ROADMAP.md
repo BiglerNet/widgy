@@ -76,13 +76,16 @@ Tasks:
 
 ### Git workflow and GitHub maintenance
 
+**Status:** applied on 2026-09-29 (ruleset "main protection", squash-only merge settings, PR template, Dependabot, `pr-title` check). Open: `CODEOWNERS` once there is a second maintainer.
+
 All work happens on a short-lived branch and lands on `main` through a pull request. Nobody (including admins and
 agents) pushes to `main` directly. Configure on GitHub (repo settings + a ruleset on `main`), and document in
 `CONTRIBUTING.md`:
 
 - Ruleset on `main`: require a pull request (no direct pushes, no force pushes, no deletion), require the CI status
-  check(s) to pass with branches up to date, require linear history, require conversations resolved. No bypass
-  for admins.
+  checks (`build`, `pr-title`) to pass with branches up to date, require linear history, require conversations
+  resolved. No bypass for admins. Zero approving reviews are required while there is a single maintainer; raise
+  `required_approving_review_count` when that changes.
 - Merge methods: squash only (disable merge commits and rebase merges), which also guarantees linear history.
 - Squash commit defaults: title = PR title, body = PR description (`squash_merge_commit_title: PR_TITLE`,
   `squash_merge_commit_message: PR_BODY`), so the PR text is the commit text.
