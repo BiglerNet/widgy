@@ -1,5 +1,8 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Threading;
 using SkiaSharp;
 using Widgy.Core.Config;
 using Widgy.Core.Diagnostics;
@@ -18,6 +21,24 @@ namespace Widgy.Host
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+            // Software-only WPF composition: the hardware path allocates D3D surfaces for the full
+            // borderless window (~60 MB private bytes on a 1100x3840 monitor). Widgets are already
+            // software-rendered by Skia, so nothing is lost. Set WIDGY_HWRENDER=1 to opt back in.
+            if (Environment.GetEnvironmentVariable("WIDGY_HWRENDER") != "1")
+                RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
+            // Opt-in diagnostics: WIDGY_MEMLOG=1 logs process/GC memory 10 s after startup.
+            if (Environment.GetEnvironmentVariable("WIDGY_MEMLOG") == "1")
+            {
+                var memTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+                memTimer.Tick += (_, _) =>
+                {
+                    memTimer.Stop();
+                    using var proc = System.Diagnostics.Process.GetCurrentProcess();
+                    WidgyLog.Info($"MEM ws={proc.WorkingSet64 / 1048576.0:0.#}MB private={proc.PrivateMemorySize64 / 1048576.0:0.#}MB " +
+                                  $"gcHeap={GC.GetTotalMemory(false) / 1048576.0:0.#}MB gcCommitted={GC.GetGCMemoryInfo().TotalCommittedBytes / 1048576.0:0.#}MB");
+                };
+                memTimer.Start();
+            }
             DispatcherUnhandledException += (_, args) => WidgyLog.Error("Unhandled UI exception", args.Exception);
 
             var appDir = AppContext.BaseDirectory;
