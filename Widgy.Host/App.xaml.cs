@@ -1,102 +1,101 @@
-using System;
 using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
+using System.Windows;
+using SkiaSharp;
 using Widgy.Core.Config;
-using Widgy.Core.Layout;
+using Widgy.Core.Diagnostics;
+using Widgy.Core.Interfaces;
 using Widgy.Core.Plugin;
+using Widgy.Core.Rendering;
 
 namespace Widgy.Host
 {
-    public partial class App
+    public partial class App : Application
     {
-        private GridLayoutManager _layoutManager;
-        private ConfigStore _configStore;
-        private WidgetPluginLoader _pluginLoader;
+        private ConfigStore? _configStore;
+        private WidgetPluginLoader? _plugins;
 
-        protected override async void OnStartup(System.Windows.StartupEventArgs e)
+        // Startup sequence per host-shell spec: monitor -> config -> plugins -> layout -> render loop.
+        protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+            DispatcherUnhandledException += (_, args) => WidgyLog.Error("Unhandled UI exception", args.Exception);
 
-            var screenWidth = System.Windows.SystemParameters.PrimaryScreenWidth;
-            var screenHeight = System.Windows.SystemParameters.PrimaryScreenHeight;
-            _layoutManager = new GridLayoutManager(screenWidth, screenHeight);
+            var appDir = AppContext.BaseDirectory;
+            WidgyLog.Info($"Widgy starting from {appDir}");
 
-            var appDir = AppDomain.CurrentDomain.BaseDirectory;
-            var pluginsDir = Path.Combine(appDir, "plugins");
-            Directory.CreateDirectory(pluginsDir);
+            var monitors = MonitorPlacement.GetMonitors();
+            foreach (var m in monitors) WidgyLog.Info($"Monitor: {m}");
 
-            var configPath = Path.Combine(appDir, "widgy-config.json");
-            _configStore = new ConfigStore(configPath);
+            _configStore = new ConfigStore(Path.Combine(appDir, "widgy-config.json"));
 
-            _pluginLoader = new WidgetPluginLoader();
-            await _pluginLoader.ScanAndLoadPlugins(pluginsDir);
+            _plugins = new WidgetPluginLoader();
+            _plugins.ScanAndLoadPlugins(Path.Combine(appDir, "plugins"));
 
-            var types = _pluginLoader.GetRegisteredWidgetTypes();
-            foreach (var t in types)
-                System.Diagnostics.Debug.WriteLine("Loaded widget: " + t);
+            var target = MonitorPlacement.Select(_configStore.Config, monitors);
+            WidgyLog.Info($"Target monitor: {target}");
+
+            var snapshotIndex = Array.IndexOf(e.Args, "--snapshot");
+            if (snapshotIndex >= 0)
+            {
+                var exitCode = RunSnapshot(e.Args, snapshotIndex, target);
+                Shutdown(exitCode);
+                return;
+            }
+
+            ShutdownMode = ShutdownMode.OnMainWindowClose;
+            MainWindow = new MainWindow(_configStore, _plugins, target);
+            MainWindow.Show();
+        }
+
+        /// <summary>
+        /// <c>--snapshot out.png [--size WxH]</c>: renders the active page off-screen with the same layout and
+        /// widget code as the live window, writes a PNG and exits. Defaults to the target monitor's resolution.
+        /// </summary>
+        private int RunSnapshot(string[] args, int index, MonitorInfo target)
+        {
             try
             {
-                System.IO.File.WriteAllText(System.IO.Path.Combine(appDir, "widgy.log"),
-                    $"[{DateTime.Now:HH:mm:ss.fff}] plugins dir={pluginsDir} registered=[{string.Join(", ", types)}] config={configPath} widgets={_configStore.Config.Pages[_configStore.Config.ActivePage].Widgets.Count}\n");
-            }
-            catch { }
+                var output = index + 1 < args.Length ? args[index + 1] : "widgy.snapshot.png";
+                var width = target.Bounds.Width;
+                var height = target.Bounds.Height;
 
-            var mw = new MainWindow(_layoutManager, _configStore, _pluginLoader);
-
-            // Place the window on the configured monitor.
-            // Prefer a named monitor (stable across AllScreens reordering); fall back to 1-based index.
-            var screens = System.Windows.Forms.Screen.AllScreens;
-            System.IO.File.AppendAllText(System.IO.Path.Combine(appDir, "widgy.log"), $"[{DateTime.Now:HH:mm:ss.fff}] screens={screens.Length}\n");
-            for (int si = 0; si < screens.Length; si++)
-            {
-                var sb = screens[si].Bounds;
-                System.IO.File.AppendAllText(System.IO.Path.Combine(appDir, "widgy.log"),
-                    $"[{DateTime.Now:HH:mm:ss.fff}]   [{si}] {screens[si].DeviceName} X={sb.Left} Y={sb.Top} W={sb.Width} H={sb.Height} primary={screens[si].Primary}\n");
-            }
-
-            System.Windows.Forms.Screen target = null;
-            var monName = (_configStore.Config?.MonitorName ?? "").Trim().ToLowerInvariant();
-            if (monName == "primary") target = System.Windows.Forms.Screen.PrimaryScreen;
-            else if (monName.Length > 0)
-            {
-                Func<System.Windows.Forms.Screen, double> metric = monName switch
+                var sizeIndex = Array.IndexOf(args, "--size");
+                if (sizeIndex >= 0 && sizeIndex + 1 < args.Length)
                 {
-                    "tallest" or "tallest-portrait" => s => (s.Bounds.Height >= s.Bounds.Width ? s.Bounds.Height : -1),
-                    "widest" => s => s.Bounds.Width,
-                    "largest" => s => (double)s.Bounds.Width * s.Bounds.Height,
-                    _ => s => -1
-                };
-                var best = -1.0;
-                foreach (var s in screens)
-                {
-                    var mval = metric(s);
-                    if (mval > best) { best = mval; target = s; }
+                    var parts = args[sizeIndex + 1].Split('x', 'X');
+                    width = int.Parse(parts[0]);
+                    height = int.Parse(parts[1]);
                 }
-                if (target == null || best < 0) target = null;
-            }
-            if (target == null)
-            {
-                int monitor = Math.Max(1, _configStore.Config?.Monitor ?? 1);
-                if (monitor >= 1 && monitor <= screens.Length) target = screens[monitor - 1];
-                else target = System.Windows.Forms.Screen.PrimaryScreen;
-            }
 
-            if (target != null)
-            {
-                var b = target.Bounds;
-                double scale = (double)System.Windows.SystemParameters.VirtualScreenWidth
-                             / System.Windows.Forms.SystemInformation.VirtualScreen.Width;
-                mw.WindowState = System.Windows.WindowState.Normal;
-                mw.Left = b.Left / scale;
-                mw.Top = b.Top / scale;
-                mw.Width = b.Width / scale;
-                mw.Height = b.Height / scale;
-                System.IO.File.AppendAllText(System.IO.Path.Combine(appDir, "widgy.log"),
-                    $"[{DateTime.Now:HH:mm:ss.fff}] placed on {target.DeviceName} {b.Width}x{b.Height} at {b.Left},{b.Top} (scale={scale:F3})\n");
-            }
+                var page = _configStore!.Config.CurrentPage;
+                var widgets = new List<(WidgetConfig, IWidget)>();
+                foreach (var config in page?.Widgets ?? new List<WidgetConfig>())
+                {
+                    var widget = _plugins!.CreateWidget(config);
+                    if (widget == null) WidgyLog.Warn($"Snapshot: '{config.WidgetTypeId}' not registered");
+                    else widgets.Add((config, widget));
+                }
 
-            mw.Show();
+                using var bitmap = PageRenderer.RenderToBitmap(width, height, widgets, ThemeColors.DefaultDark, DateTime.Now);
+                using var file = File.Create(output);
+                bitmap.Encode(file, SKEncodedImageFormat.Png, 100);
+                WidgyLog.Info($"Snapshot {width}x{height} with {widgets.Count} widget(s) written to {Path.GetFullPath(output)}");
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                WidgyLog.Error("Snapshot failed", ex);
+                return 1;
+            }
+        }
+
+        protected override void OnExit(ExitEventArgs e)
+        {
+            try { _configStore?.Save(); }
+            catch (Exception ex) { WidgyLog.Warn($"Could not save config on exit: {ex.Message}"); }
+            _configStore?.Dispose();
+            _plugins?.Dispose();
+            base.OnExit(e);
         }
     }
 }

@@ -24,13 +24,7 @@ public class Cfg : WidgetConfig { }
 
     private const string Body = @"
 {
-    public override string Name => ""x"";
-    public override string Description => ""x"";
-    public override string Category => ""x"";
-    public override System.Drawing.Size[] SupportedSizes => new System.Drawing.Size[0];
-    public override Cfg DefaultConfig => new Cfg();
-    public override Type ConfigType => typeof(Cfg);
-    public override Task RenderAsync(SKCanvas canvas, WidgetRenderContext context, CancellationToken token) => Task.CompletedTask;
+    public override void Render(WidgetRenderContext context) { }
 }";
 
     private const string Widget = "[Widget(\"a\", \"b\")]";

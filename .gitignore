@@ -30,3 +30,6 @@ openspec-apply-session.jsonl
 pi-session-*.html
 screenshot.png
 *.snapshot.png
+
+# Claude Code sub-agent worktrees
+.claude/worktrees/

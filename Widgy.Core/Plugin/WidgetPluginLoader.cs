@@ -1,185 +1,126 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
+using System.Reflection;
 using System.Threading;
-using System.Threading.Tasks;
-using Widgy.Core.Attributes;
-using Widgy.Core.Interfaces;
 using Widgy.Core.Config;
+using Widgy.Core.Diagnostics;
+using Widgy.Core.Interfaces;
 
 namespace Widgy.Core.Plugin
 {
-    public class WidgetPluginLoader
+    public sealed class WidgetPluginLoader : IPluginService, IDisposable
     {
-        private readonly WidgetRegistry _registry = new WidgetRegistry();
+        private readonly WidgetRegistry _registry = new();
         private FileSystemWatcher? _watcher;
-        private CancellationTokenSource? _debounceCts;
+        private Timer? _debounce;
+        private string? _pluginDirectory;
 
-        public async Task ScanAndLoadPlugins(string pluginDirectory)
+        public event Action? PluginsChanged;
+
+        public WidgetRegistry Registry => _registry;
+
+        public void ScanAndLoadPlugins(string pluginDirectory)
         {
-            if (!Directory.Exists(pluginDirectory))
-            {
-                Directory.CreateDirectory(pluginDirectory);
-            }
-
-            foreach (var dllPath in Directory.EnumerateFiles(pluginDirectory, "*.dll"))
-            {
-                try
-                {
-                    var assembly = System.Reflection.Assembly.LoadFrom(dllPath);
-                    PluginLog($"LoadFrom {Path.GetFileName(dllPath)} -> {assembly.FullName}");
-                    await LoadAssembly(assembly);
-                }
-                catch (Exception ex)
-                {
-                    PluginLog($"Failed to load plugin {dllPath}: {ex}");
-                    System.Diagnostics.Debug.WriteLine($"Failed to load plugin {dllPath}: {ex.Message}");
-                }
-            }
-
-            WatchForChanges(pluginDirectory);
+            _pluginDirectory = Path.GetFullPath(pluginDirectory);
+            Directory.CreateDirectory(_pluginDirectory);
+            LoadAll();
+            WatchForChanges();
         }
 
-        internal static void PluginLog(string message)
-        {
-            try
-            {
-                var path = System.IO.Path.Combine(AppContext.BaseDirectory, "widgy.log");
-                System.IO.File.AppendAllText(path, $"[{DateTime.Now:HH:mm:ss.fff}] [plugin] {message}\n");
-            }
-            catch { }
-        }
-
-        public async Task ReloadPlugins(string pluginDirectory)
+        // TODO(hot-reload): Assembly.LoadFrom can't unload or replace an already-loaded assembly, so a
+        // rebuilt plugin DLL isn't picked up until restart. Move to a collectible AssemblyLoadContext
+        // with shadow copies (tasks 4.5 / 8.6).
+        public void ReloadPlugins()
         {
             _registry.Clear();
+            LoadAll();
+        }
 
-            foreach (var dllPath in Directory.EnumerateFiles(pluginDirectory, "*.dll"))
+        private void LoadAll()
+        {
+            if (_pluginDirectory == null) return;
+
+            foreach (var dllPath in Directory.EnumerateFiles(_pluginDirectory, "*.dll"))
             {
                 try
                 {
-                    var assembly = System.Reflection.Assembly.LoadFrom(dllPath);
-                    await LoadAssembly(assembly);
+                    LoadAssembly(Assembly.LoadFrom(dllPath));
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Failed to reload plugin {dllPath}: {ex.Message}");
+                    WidgyLog.Warn($"Failed to load plugin {Path.GetFileName(dllPath)}: {ex.Message}");
                 }
             }
         }
 
-        private async Task LoadAssembly(System.Reflection.Assembly assembly)
+        /// <summary>Registers every valid widget type in <paramref name="assembly"/>. Public so tests and hosts can register built-ins directly.</summary>
+        public void LoadAssembly(Assembly assembly)
         {
             Type[] types;
             try
             {
                 types = assembly.GetTypes();
             }
-            catch (Exception ex)
+            catch (ReflectionTypeLoadException ex)
             {
-                PluginLog($"GetTypes failed on {assembly.FullName}: {ex}");
-                return;
+                WidgyLog.Warn($"Some types in {assembly.GetName().Name} failed to load: {ex.LoaderExceptions.FirstOrDefault()?.Message}");
+                types = ex.Types.Where(t => t != null).ToArray()!;
             }
 
             foreach (var type in types)
             {
-                if (!type.IsClass || type.IsAbstract) continue;
+                if (!typeof(IWidget).IsAssignableFrom(type) || type.IsAbstract || type.IsInterface) continue;
 
-                var interfaces = type.GetInterfaces();
-                var widgetInterface = interfaces.FirstOrDefault(i =>
-                    (i.Name == "IWidget`1" && i.Namespace?.StartsWith("Widgy.Core.Interfaces") == true));
-
-                if (widgetInterface == null) continue;
-
-                PluginLog($"Candidate {type.FullName} interfaces=[{string.Join(", ", interfaces.Select(i => i.FullName))}] iwidgetAsm={widgetInterface.Assembly.FullName}");
-
-                var widgetAttr = (WidgetAttribute?)System.Reflection.CustomAttributeExtensions.GetCustomAttribute<WidgetAttribute>(type);
-                if (widgetAttr == null)
+                var descriptor = WidgetDescriptor.TryCreate(type, out var reason);
+                if (descriptor == null)
                 {
-                    PluginLog($"SKIP {type.Name}: no [Widget] attr. custom attrs=[{string.Join(", ", type.GetCustomAttributesData().Select(a => a.Constructor?.DeclaringType?.FullName))}]");
+                    WidgyLog.Warn($"Skipping widget {type.FullName}: {reason}");
                     continue;
                 }
 
-                var configType = widgetAttr.ConfigType;
-                if (configType == null)
-                {
-                    var genericArg = widgetInterface.GetGenericArguments()[0];
-                    configType = genericArg;
-                }
-
-                _registry.Register(widgetAttr.Name, type, configType, widgetAttr.Description, widgetAttr.Category);
-                PluginLog($"REGISTERED {widgetAttr.Name} type={type.FullName} config={configType.FullName}");
-
-                var categoryAttr = System.Reflection.CustomAttributeExtensions.GetCustomAttribute<CategoryAttribute>(type);
-                var widgetSizeAttrs = type.GetCustomAttributes(typeof(WidgetSizeAttribute), true)
-                    .Cast<WidgetSizeAttribute>()
-                    .Select(s => new System.Drawing.Size(s.Width, s.Height))
-                    .ToArray();
-
-                _registry.AddSupportedSizes(widgetAttr.Name, widgetSizeAttrs);
+                _registry.Register(descriptor);
+                WidgyLog.Info($"Registered widget '{descriptor.Id}' ({type.FullName}, {descriptor.Refresh} {descriptor.RefreshInterval})");
             }
         }
 
-        private void WatchForChanges(string pluginDirectory)
+        private void WatchForChanges()
         {
-            _watcher = new FileSystemWatcher(pluginDirectory)
+            _debounce = new Timer(_ =>
             {
-                Filter = "*.dll",
-                EnableRaisingEvents = true,
-                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName
+                try
+                {
+                    ReloadPlugins();
+                    PluginsChanged?.Invoke();
+                }
+                catch (Exception ex)
+                {
+                    WidgyLog.Error("Plugin reload failed", ex);
+                }
+            });
+
+            _watcher = new FileSystemWatcher(_pluginDirectory!, "*.dll")
+            {
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName,
             };
-
-            _watcher.Changed += OnPluginChanged;
-            _watcher.Created += OnPluginChanged;
-            _watcher.Deleted += OnPluginDeleted;
+            FileSystemEventHandler onChange = (_, _) => _debounce.Change(TimeSpan.FromMilliseconds(500), Timeout.InfiniteTimeSpan);
+            _watcher.Changed += onChange;
+            _watcher.Created += onChange;
+            _watcher.Deleted += onChange;
+            _watcher.Renamed += (_, _) => _debounce.Change(TimeSpan.FromMilliseconds(500), Timeout.InfiniteTimeSpan);
+            _watcher.EnableRaisingEvents = true;
         }
 
-        private void OnPluginChanged(object sender, FileSystemEventArgs e)
+        public IReadOnlyList<string> GetRegisteredWidgetTypes() => _registry.GetRegisteredWidgetTypes();
+
+        public WidgetDescriptor? GetDescriptor(string typeId) => _registry.GetDescriptor(typeId);
+
+        public IWidget? CreateWidget(WidgetConfig config) => _registry.CreateWidget(config);
+
+        public void Dispose()
         {
-            _debounceCts?.Cancel();
-            _debounceCts = new CancellationTokenSource();
-
-            Task.Delay(500, _debounceCts.Token).ContinueWith(async _ =>
-            {
-                _debounceCts?.Cancel();
-                try
-                {
-                    await ReloadPlugins(e.FullPath.Substring(0, e.FullPath.LastIndexOf('\\')));
-                }
-                catch { }
-            }, TaskScheduler.Default);
-        }
-
-        private void OnPluginDeleted(object sender, FileSystemEventArgs e)
-        {
-            _debounceCts?.Cancel();
-            _debounceCts = new CancellationTokenSource();
-
-            Task.Delay(500, _debounceCts.Token).ContinueWith(async _ =>
-            {
-                _debounceCts?.Cancel();
-                try
-                {
-                    await ReloadPlugins(e.FullPath.Substring(0, e.FullPath.LastIndexOf('\\')));
-                }
-                catch { }
-            }, TaskScheduler.Default);
-        }
-
-        public IReadOnlyList<string> GetRegisteredWidgetTypes()
-        {
-            return _registry.GetRegisteredWidgetTypes();
-        }
-
-        public object? GetWidgetInstance(string typeId, WidgetConfig config)
-        {
-            return _registry.GetWidgetInstance(typeId, config);
-        }
-
-        public Widgy.Core.Config.WidgetConfig GetWidgetConfig(string typeId, Widgy.Core.Config.WidgetConfig config)
-        {
-            return _registry.GetWidgetConfig(typeId, config);
+            _watcher?.Dispose();
+            _debounce?.Dispose();
         }
     }
 }

@@ -29,38 +29,55 @@ namespace Widgy.Core.Config
         public bool IsVisible { get; set; } = true;
 
         /// <summary>
-        /// The widget's raw JSON as it appears in widgy-config.json. Captured by the
-        /// config store so plugins can deserialize their concrete config type (which
-        /// carries widget-specific properties the base type does not know about).
+        /// Widget-specific settings (e.g. Clock's "format") that the base type doesn't model. Preserved
+        /// across load/save so the page file never loses them, and used to build the concrete config.
         /// </summary>
-        [JsonIgnore]
-        public string? RawJson { get; set; }
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? ExtensionData { get; set; }
 
-        public virtual string SaveConfigJson()
+        /// <summary>
+        /// Converts this config (typically a base <see cref="WidgetConfig"/> read from the page file) into
+        /// the widget's concrete config type, picking up widget-specific settings from <see cref="ExtensionData"/>.
+        /// Properties missing from the JSON keep the concrete type's defaults.
+        /// </summary>
+        public WidgetConfig ToConcrete(Type configType)
         {
-            return JsonSerializer.Serialize(this, new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            });
+            if (configType == GetType()) return this;
+            if (!typeof(WidgetConfig).IsAssignableFrom(configType))
+                throw new ArgumentException($"{configType} does not derive from {nameof(WidgetConfig)}.", nameof(configType));
+
+            var json = JsonSerializer.Serialize(this, GetType(), WidgyJson.Options);
+            return (WidgetConfig)(JsonSerializer.Deserialize(json, configType, WidgyJson.Options)
+                ?? throw new InvalidOperationException($"Could not create {configType.Name} from config."));
         }
+
+        public virtual string SaveConfigJson() => JsonSerializer.Serialize(this, GetType(), WidgyJson.Options);
 
         public virtual void LoadConfigJson(string json)
         {
-            var obj = JsonSerializer.Deserialize<WidgetConfig>(json, new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            });
-            if (obj != null)
-            {
-                WidgetTypeId = obj.WidgetTypeId;
-                Col = obj.Col;
-                Row = obj.Row;
-                Width = obj.Width;
-                Height = obj.Height;
-                Parameters = obj.Parameters ?? new Dictionary<string, string>();
-                IsVisible = obj.IsVisible;
-            }
+            var obj = JsonSerializer.Deserialize<WidgetConfig>(json, WidgyJson.Options);
+            if (obj == null) return;
+            WidgetTypeId = obj.WidgetTypeId;
+            Col = obj.Col;
+            Row = obj.Row;
+            Width = obj.Width;
+            Height = obj.Height;
+            Parameters = obj.Parameters ?? new Dictionary<string, string>();
+            IsVisible = obj.IsVisible;
+            ExtensionData = obj.ExtensionData;
         }
+    }
+
+    public static class WidgyJson
+    {
+        public static readonly JsonSerializerOptions Options = new()
+        {
+            WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            PropertyNameCaseInsensitive = true,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            ReadCommentHandling = JsonCommentHandling.Skip,
+            AllowTrailingCommas = true,
+        };
     }
 }

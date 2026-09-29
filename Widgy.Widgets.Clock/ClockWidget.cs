@@ -1,80 +1,92 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using SkiaSharp;
 using Widgy.Core;
 using Widgy.Core.Attributes;
-using Widgy.Core.Config;
 using Widgy.Core.Enums;
 using Widgy.Core.Rendering;
 using Widgy.Widgets.Clock.Config;
 
 namespace Widgy.Widgets.Clock
 {
-    [Widget("Clock", "Display current time")]
+    [Widget("Clock", "Display current time", Id = "widgy.widgets.clock")]
     [WidgetSize(4, 2)]
+    [WidgetSize(4, 1)]
+    [WidgetSize(2, 1)]
+    [WidgetSize(1, 1)]
     [RefreshOnTick(1, TimeUnit.Seconds)]
     [Category("System")]
     public class ClockWidget : Widget<ClockConfig>
     {
-        public override string Name => "Clock";
-        public override string Description => "Display current time";
-        public override string Category => "System";
-        public override System.Drawing.Size[] SupportedSizes => new[] { new System.Drawing.Size(4, 2), new System.Drawing.Size(1, 1) };
-        public override ClockConfig DefaultConfig => new ClockConfig();
-        public override Type ConfigType => typeof(ClockConfig);
+        private static readonly SKTypeface TimeTypeface =
+            SKTypeface.FromFamilyName("Segoe UI", SKFontStyleWeight.SemiBold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright)
+            ?? SKTypeface.Default;
 
-        public override Task RenderAsync(SKCanvas canvas, WidgetRenderContext context, CancellationToken token)
+        private static readonly SKTypeface DateTypeface =
+            SKTypeface.FromFamilyName("Segoe UI", SKFontStyleWeight.Light, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright)
+            ?? SKTypeface.Default;
+
+        public override void Render(WidgetRenderContext context)
         {
-            var config = (ClockConfig)context.Config;
+            var canvas = context.Canvas;
             var theme = context.Theme;
+            float width = context.PixelSize.Width;
+            float height = context.PixelSize.Height;
 
-            // Background is the panel surface color (design constant); the optional
-            // TextColor config overrides the text color, not the background.
-            canvas.Clear(theme.PanelBackgroundColor);
+            DrawPanel(canvas, width, height, theme);
 
-            float fontSize = (float)(context.PixelSize.Height * 0.3f * config.FontSize);
-            float dateFontSize = (float)(context.PixelSize.Height * 0.15f * config.FontSize);
+            var textColor = Config.TextColor != null && SKColor.TryParse(Config.TextColor, out var custom)
+                ? custom
+                : theme.TextColor;
 
-            var timeText = config.Format == "12h"
+            var timeText = Config.Format == "12h"
                 ? context.Time.ToString("h:mm tt")
                 : context.Time.ToString("HH:mm");
+            var dateText = context.Time.ToString("ddd MMM d, yyyy");
 
-            using var timeTypeface = SKTypeface.FromFamilyName("Segoe UI", SKFontStyleWeight.SemiBold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright) ?? SKTypeface.Default;
-            using var timeFont = new SKFont(timeTypeface, fontSize);
+            var scale = (float)Math.Max(0.1, Config.FontSize);
+            using var timeFont = new SKFont(TimeTypeface, height * 0.3f * scale) { Subpixel = true, Edging = SKFontEdging.Antialias };
+            using var dateFont = new SKFont(DateTypeface, height * 0.15f * scale) { Subpixel = true, Edging = SKFontEdging.Antialias };
 
-            var textBrush = string.IsNullOrEmpty(config.TextColor) ? theme.TextColor : ParseColor(config.TextColor);
-            var paint = new SKPaint
+            // Shrink to fit narrow sizes (e.g. 1x1) with a margin on each side.
+            var maxTextWidth = width * 0.85f;
+            FitWidth(timeFont, timeText, maxTextWidth);
+            if (Config.ShowDate) FitWidth(dateFont, dateText, maxTextWidth);
+
+            // Vertically center the block using cap height (time) and x-height-ish ascent (date).
+            var timeCap = CapHeight(timeFont);
+            var dateCap = Config.ShowDate ? CapHeight(dateFont) : 0f;
+            var gap = Config.ShowDate ? timeFont.Size * 0.3f : 0f;
+            var blockHeight = timeCap + gap + dateCap;
+            var top = (height - blockHeight) / 2f;
+            var cx = width / 2f;
+
+            using var timePaint = new SKPaint { Color = textColor, IsAntialias = true };
+            canvas.DrawText(timeText, cx, top + timeCap, SKTextAlign.Center, timeFont, timePaint);
+
+            if (Config.ShowDate)
             {
-                Color = textBrush,
-                IsAntialias = true
-            };
-
-            var x = context.PixelSize.Width / 2f;
-            var y = context.PixelSize.Height / 2f - (fontSize / 4f);
-
-            canvas.DrawText(timeText, x, y, SKTextAlign.Center, timeFont, paint);
-
-            if (config.ShowDate)
-            {
-                using var dateTypeface = SKTypeface.FromFamilyName("Segoe UI", SKFontStyleWeight.Normal, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright) ?? SKTypeface.Default;
-                using var dateFont = new SKFont(dateTypeface, dateFontSize);
-
-                var dateStr = context.Time.ToString("ddd MMM d, yyyy");
-                canvas.DrawText(dateStr, x, y + dateFontSize + fontSize / 3f, SKTextAlign.Center, dateFont, paint);
+                using var datePaint = new SKPaint { Color = textColor.WithAlpha(0xCC), IsAntialias = true };
+                canvas.DrawText(dateText, cx, top + timeCap + gap + dateCap, SKTextAlign.Center, dateFont, datePaint);
             }
-
-            paint.Dispose();
-            return Task.CompletedTask;
         }
 
-        private static SKColor ParseColor(string hexColor)
+        private static void DrawPanel(SKCanvas canvas, float width, float height, ThemeColors theme)
         {
-            if (hexColor.StartsWith("#") && hexColor.Length == 7)
-            {
-                return SKColor.Parse(hexColor);
-            }
-            return SKColor.Parse("#000000");
+            var inset = Math.Min(width, height) * 0.03f;
+            var radius = Math.Min(width, height) * 0.08f;
+            using var panel = new SKPaint { Color = theme.PanelBackgroundColor, IsAntialias = true };
+            canvas.DrawRoundRect(SKRect.Create(inset, inset, width - inset * 2, height - inset * 2), radius, radius, panel);
+        }
+
+        private static void FitWidth(SKFont font, string text, float maxWidth)
+        {
+            var measured = font.MeasureText(text);
+            if (measured > maxWidth && measured > 0) font.Size *= maxWidth / measured;
+        }
+
+        private static float CapHeight(SKFont font)
+        {
+            var cap = font.Metrics.CapHeight;
+            return cap > 0 ? cap : -font.Metrics.Ascent * 0.7f;
         }
     }
 }

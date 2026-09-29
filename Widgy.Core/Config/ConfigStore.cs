@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Widgy.Core.Config;
+using Widgy.Core.Diagnostics;
 
 namespace Widgy.Core.Config
 {
@@ -15,7 +15,7 @@ namespace Widgy.Core.Config
         public List<WidgetConfig> Widgets { get; set; } = new List<WidgetConfig>();
 
         [JsonPropertyName("background")]
-        public object? Background { get; set; }
+        public JsonElement? Background { get; set; }
     }
 
     public class DockItemConfig
@@ -50,20 +50,29 @@ namespace Widgy.Core.Config
         [JsonPropertyName("icon")]
         public string? Icon { get; set; }
 
+        /// <summary>1-based monitor index, used when <see cref="MonitorName"/> doesn't match anything.</summary>
         [JsonPropertyName("monitor")]
         public int Monitor { get; set; } = 1;
 
+        /// <summary>
+        /// Target monitor: "primary", "tallest", "widest", "largest", or a device name such as "DISPLAY1".
+        /// </summary>
         [JsonPropertyName("monitorName")]
         public string? MonitorName { get; set; }
+
+        [JsonIgnore]
+        public PageConfig? CurrentPage =>
+            Pages.Count == 0 ? null : Pages[Math.Clamp(ActivePage, 0, Pages.Count - 1)];
     }
 
-    public class ConfigStore
+    public sealed class ConfigStore : IDisposable
     {
-        private WidgyConfig _config = new WidgyConfig();
-        private string _configPath = "";
+        private readonly string _configPath;
         private FileSystemWatcher? _watcher;
-        private CancellationTokenSource? _debounceCts;
+        private Timer? _debounce;
+        private DateTime _ignoreChangesUntil;
 
+        /// <summary>Raised on a thread-pool thread after the file changed on disk and was reloaded.</summary>
         public event Action<WidgyConfig>? ConfigChanged;
 
         public ConfigStore(string configPath)
@@ -73,94 +82,87 @@ namespace Widgy.Core.Config
             WatchForConfigChanges();
         }
 
-        public WidgyConfig Config => _config;
+        public WidgyConfig Config { get; private set; } = new WidgyConfig();
 
         public void Load()
         {
-            if (File.Exists(_configPath))
+            if (!File.Exists(_configPath))
             {
-                var json = File.ReadAllText(_configPath);
-                _config = JsonSerializer.Deserialize<WidgyConfig>(json, new JsonSerializerOptions
-                {
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-                }) ?? new WidgyConfig();
-                AttachWidgetRawJson(json);
-            }
-            else
-            {
-                _config = new WidgyConfig();
+                Config = new WidgyConfig();
                 Save();
+                return;
             }
-        }
 
-        /// <summary>
-        /// Attach each widget's raw JSON element to its WidgetConfig so plugins can
-        /// deserialize their concrete config type (which has widget-specific properties
-        /// the base WidgetConfig does not model).
-        /// </summary>
-        private void AttachWidgetRawJson(string json)
-        {
-            try
-            {
-                using var doc = JsonDocument.Parse(json);
-                if (!doc.RootElement.TryGetProperty("pages", out var pages) || pages.ValueKind != JsonValueKind.Array) return;
-
-                int pi = 0;
-                foreach (var pageEl in pages.EnumerateArray())
-                {
-                    if (pi >= _config.Pages.Count) break;
-                    if (!pageEl.TryGetProperty("widgets", out var widgetsEl) || widgetsEl.ValueKind != JsonValueKind.Array) { pi++; continue; }
-                    var widgets = _config.Pages[pi].Widgets;
-                    int wi = 0;
-                    foreach (var wEl in widgetsEl.EnumerateArray())
-                    {
-                        if (wi < widgets.Count) widgets[wi].RawJson = wEl.GetRawText();
-                        wi++;
-                    }
-                    pi++;
-                }
-            }
-            catch { }
+            var json = ReadShared(_configPath);
+            Config = JsonSerializer.Deserialize<WidgyConfig>(json, WidgyJson.Options) ?? new WidgyConfig();
+            if (Config.Pages.Count == 0) Config.Pages.Add(new PageConfig());
         }
 
         public void Save()
         {
-            var options = new JsonSerializerOptions
+            _ignoreChangesUntil = DateTime.UtcNow.AddSeconds(2);
+            File.WriteAllText(_configPath, JsonSerializer.Serialize(Config, WidgyJson.Options));
+        }
+
+        private static string ReadShared(string path)
+        {
+            // Editors often hold the file briefly while saving; retry a few times.
+            for (var attempt = 0; ; attempt++)
             {
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-            };
-            File.WriteAllText(_configPath, JsonSerializer.Serialize(_config, options));
+                try
+                {
+                    using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                    using var reader = new StreamReader(stream);
+                    return reader.ReadToEnd();
+                }
+                catch (IOException) when (attempt < 5)
+                {
+                    Thread.Sleep(100);
+                }
+            }
         }
 
         private void WatchForConfigChanges()
         {
-            var dir = Path.GetDirectoryName(_configPath);
+            var dir = Path.GetDirectoryName(Path.GetFullPath(_configPath));
             if (string.IsNullOrEmpty(dir)) return;
 
-            _watcher = new FileSystemWatcher(dir)
+            _debounce = new Timer(_ => ReloadFromDisk());
+            _watcher = new FileSystemWatcher(dir, Path.GetFileName(_configPath))
             {
-                Filter = Path.GetFileName(_configPath),
-                EnableRaisingEvents = true,
-                NotifyFilter = NotifyFilters.LastWrite
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size,
             };
-
-            _watcher.Changed += OnConfigChanged;
+            _watcher.Changed += OnFileEvent;
+            _watcher.Created += OnFileEvent;
+            _watcher.Renamed += OnFileEvent;
+            _watcher.EnableRaisingEvents = true;
         }
 
-        private void OnConfigChanged(object sender, FileSystemEventArgs e)
+        private void OnFileEvent(object sender, FileSystemEventArgs e)
         {
-            _debounceCts?.Cancel();
-            _debounceCts = new CancellationTokenSource();
+            if (DateTime.UtcNow < _ignoreChangesUntil) return; // our own Save()
+            _debounce?.Change(TimeSpan.FromSeconds(1), Timeout.InfiniteTimeSpan);
+        }
 
-            Task.Delay(1000, _debounceCts.Token).ContinueWith(_ =>
+        private void ReloadFromDisk()
+        {
+            try
             {
-                _debounceCts?.Cancel();
                 Load();
-                ConfigChanged?.Invoke(_config);
-            }, TaskScheduler.Default);
+                WidgyLog.Info($"Config reloaded from {_configPath}");
+                ConfigChanged?.Invoke(Config);
+            }
+            catch (Exception ex)
+            {
+                // Keep running on the last good config (e.g. a half-typed JSON edit).
+                WidgyLog.Warn($"Config reload failed, keeping previous config: {ex.Message}");
+            }
+        }
+
+        public void Dispose()
+        {
+            _watcher?.Dispose();
+            _debounce?.Dispose();
         }
     }
 }
