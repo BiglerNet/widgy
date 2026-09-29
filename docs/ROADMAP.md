@@ -1,0 +1,155 @@
+# Widgy Roadmap
+
+Widgy is a lightweight, extensible widget dashboard for secondary/case displays (first target: the HYTE Y70 Touch
+1100x3840 portrait panel), replacing HYTE Nexus. Priorities: low resource use, great visuals, a modular widget SDK,
+a WYSIWYG editor, and touch.
+
+This document is the hand-off point for work sessions. Each item below should become (or already is) an OpenSpec
+change under `openspec/changes/`. Work one item per session.
+
+## How to run a work session
+
+1. Read `README.md`, this file, and the item's OpenSpec change (create it with the OpenSpec propose workflow if
+   it doesn't exist yet; `openspec validate --all --strict` must pass).
+2. Implement against `tasks.md`, ticking tasks only when verified.
+3. Verify:
+   - `dotnet build widgy.sln` (0 warnings) and `dotnet test widgy.sln`.
+   - Rendering without a screen: `Widgy.Host.exe --snapshot out.png --size 1100x3840` (from the host's bin folder).
+   - On the real panel: launch detached (the app otherwise blocks the shell), read `widgy.log` next to the exe.
+     It logs monitors, actual vs. target window bounds, placed widgets, reloads and warnings.
+   - Screen capture on Windows: use Windows PowerShell 5.1 (`powershell.exe`, not `pwsh`), call
+     `SetProcessDpiAwarenessContext(-4)` first, then `Graphics.CopyFromScreen` of the monitor bounds.
+     `PrintWindow` on the WPF window returns blank. Prefer one capture, or ask the user to look.
+4. Conventional commits (`feat(scope): ...`, `fix`, `docs`, `test`, `perf`, `refactor`, `chore`), branch off `main`.
+5. Archive the OpenSpec change when all its tasks are done.
+
+Suggested model per item is noted as **Model**. Items marked Opus involve architecture decisions or hard debugging;
+everything else should be fine on Sonnet.
+
+## Current state (2026-09-29)
+
+- `widgy-framework` change (Phase 1 foundation) is nearly complete: SDK, analyzer, plugin loader with hot-reload
+  (collectible AssemblyLoadContext), grid layout, WPF host with per-monitor DPI placement, Clock widget, tests.
+- Proposed, not started: `theme-engine`, `display-targeting`.
+- Memory: ~66 MB private / ~115 MB working set (Release, one Clock, software WPF composition). Idle CPU negligible.
+  See `docs/perf/memory-investigation.md`.
+
+---
+
+## 1. Repository structure and standards
+
+**Why:** the repo grew organically; contributors (human and agent) need a predictable layout and enforced style.
+**Model:** Sonnet.
+
+Proposed layout (monorepo; first-party widgets live here, community widgets in their own repos):
+
+```
+src/
+  Widgy.Core/            # SDK (becomes the Widgy.Sdk NuGet package later)
+  Widgy.Analyzer/
+  Widgy.Host/
+widgets/                 # first-party widget plugins (Widgy.Widgets.Clock, ...)
+tests/
+  Widgy.Core.Tests/
+  Widgy.Analyzer.Tests/
+docs/                    # ROADMAP.md, perf/, architecture notes
+openspec/
+```
+
+Tasks:
+- Move projects; keep the host build copying first-party widgets into `plugins/`. Consider `widgy.slnx`.
+- `Directory.Build.props`: shared TFMs, `Nullable`, `ImplicitUsings`, `LangVersion`, `TreatWarningsAsErrors`,
+  `EnforceCodeStyleInBuild`. `Directory.Packages.props` for central package versions (SkiaSharp 3.119.4, xunit, Roslyn).
+- `.editorconfig`: file-scoped namespaces (convert existing block namespaces), `var` usage, naming (`_camelCase`
+  fields), brace/newline rules, CRLF handling consistent with `.gitattributes`. Run `dotnet format` once to apply.
+- Test coverage with coverlet (`dotnet test --collect:"XPlat Code Coverage"`); set a floor for Widgy.Core.
+- `AGENTS.md` (build/test/verify commands, conventions, the Windows/WPF gotchas above; `CLAUDE.md` can point to it).
+- `CONTRIBUTING.md`: move the widget-authoring section out of README; add performance budgets (item 4) and the
+  review checklist.
+- GitHub Actions CI on `windows-latest`: build, test, `dotnet format --verify-no-changes`, `openspec validate --all --strict`.
+- Decide with the owner: license; product name is not final, so keep the name easy to change (namespaces, exe name).
+- Placeholder app icon (task 9.1/9.2 of `widgy-framework`); final branding deferred.
+
+## 2. Roadmap document
+
+This file. Keep "Current state" and item status up to date at the end of each session.
+
+## 3. Finish refresh strategies, then archive `widgy-framework`
+
+**Why:** the SDK promises three refresh strategies; only `[RefreshOnTick]` fully works.
+**Model:** Sonnet (Opus if the event-bus design gets contentious).
+
+- `[RefreshOnEvent("name")]` (task 10.1): an in-process event bus in Widgy.Core. Publishers (future data providers
+  like a sensor service) publish by name; the host marshals to the UI thread and invalidates subscribed widgets.
+  Subscriptions must be dropped on plugin reload. Today such widgets render once.
+- `[RefreshAdaptive(minMs, maxMs)]` (task 10.2): scale the interval between min and max based on system load
+  (e.g. process/system CPU) or on-battery; today it runs at `minMs`.
+- Skip redundant redraws: let a widget report "nothing changed" (e.g. `UpdateAsync` returning a bool, or a
+  `bool NeedsRender(DateTime now)`); the Clock should repaint once a minute, not every second.
+- Placeholder icon (see item 1), then run the OpenSpec archive workflow for `widgy-framework`.
+
+## 4. Performance budgets and measurement
+
+**Why:** give users and widget authors clear, comparable costs (the per-component strategy).
+**Model:** Opus for the measurement design, Sonnet to implement.
+
+- Budgets: host runtime baseline 60-70 MB private; editor is secondary; per-widget budgets with tiers
+  (e.g. gold < 5 MB, silver < 10 MB, bronze above), expressed **per grid size** because the render surface
+  (width x height x 4 bytes) dominates per-widget memory.
+- Measurement: a benchmark mode (e.g. `Widgy.Host.exe --bench <widgetId> --size 4x2`) that runs the host with only
+  that widget and reports the delta from an empty page (private bytes, working set), plus per-widget render time,
+  update time and allocations per frame (`GC.GetAllocatedBytesForCurrentThread` around `Render`/`UpdateAsync`).
+  Per-widget memory can't be isolated precisely inside a shared process; isolation runs are the fair measure.
+- Optional in-app diagnostics overlay showing per-widget render time and CPU.
+- Publish tiers in CONTRIBUTING.md; later show them in the widget picker.
+- Open decision: if the host baseline is unacceptable, evaluate a plain Win32 window + Skia host (est. 20-30 MB).
+
+## 5. Theme engine (`openspec/changes/theme-engine`)
+
+Shared colors, typography, panel/card styling, spacing, corner radius, exposed via `WidgetRenderContext`;
+user-selectable themes. The Clock's rounded panel card becomes a theme primitive. Do this before building more
+widgets so they don't each invent styling. **Model:** Sonnet (Opus for the API design review).
+
+## 6. Display targeting (`openspec/changes/display-targeting`)
+
+Pick the target monitor from a UI list with friendly names (EDID), persist a stable monitor identity (not
+`DISPLAYn`), never expose resolution/scaling to the user, and re-render at the correct scale after sleep/resume,
+hot-plug, mixed-DPI setups and arbitrary monitor wake order. Needs real sleep/wake testing on the Y70.
+**Model:** Opus (hard to debug).
+
+## 7. Default widget set
+
+Clock (done), weather, CPU/memory/GPU usage, media/now-playing. Notes: sensor data likely via LibreHardwareMonitor
+(some sensors need admin; run as a separate provider publishing on the event bus); weather via a keyless API such as
+Open-Meteo. Each widget must meet its performance budget (item 4). **Model:** Sonnet.
+
+## 8. Pages and touch
+
+Multiple pages with swipe navigation and a page indicator; tap/touch interaction routed to widgets (WPF touch and
+manipulation events; add an input API to the SDK). **Model:** Sonnet, Opus for the input API design.
+
+## 9. Backgrounds
+
+Static image, video, and generative visualizations per page (the `background` config field exists but is unused).
+Video is expensive: gate it behind the performance budget and measure. **Model:** Sonnet.
+
+## 10. Dock / quick launch
+
+Launcher bar for apps and URLs (the `dock` config field exists but is unused). **Model:** Sonnet.
+
+## 11. WYSIWYG editor
+
+Drag/drop placement on the grid, resize within supported sizes, property editing from each widget's config type,
+widget palette with performance tiers. Likely a separate window on the primary monitor editing the live page.
+**Model:** Opus for design, Sonnet for implementation.
+
+## 12. Packaging and distribution
+
+Installer, start with Windows, tray icon, auto-update, final product name and branding. **Model:** Sonnet.
+
+## 13. SDK distribution and other displays
+
+- Publish the SDK as a NuGet package with the analyzer bundled; a `dotnet new` widget template.
+- Cross-brand support: some case screens are Windows monitors (like the Y70), others are USB LCDs driven by vendor
+  protocols. `PageRenderer` already renders a page to a bitmap, which is the basis for "display backends" that push
+  frames to non-monitor devices.
