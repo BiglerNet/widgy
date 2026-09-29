@@ -1,16 +1,11 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace Widgy.Analyzer
 {
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public class WidgetAnalyzer : DiagnosticAnalyzer
+    public sealed class WidgetAnalyzer : DiagnosticAnalyzer
     {
         public const string IdWidget = "WIDGY001";
         public const string IdWidgetSize = "WIDGY002";
@@ -18,116 +13,97 @@ namespace Widgy.Analyzer
         public const string IdMultipleRefresh = "WIDGY004";
         public const string IdInvalidSize = "WIDGY005";
 
-        private static readonly DiagnosticDescriptor RuleWidget = new(
-            IdWidget, "Missing [Widget]", "Widget class must have [Widget] attribute", "Usage", DiagnosticSeverity.Error, true);
+        private const string WidgetBaseMetadataName = "Widgy.Core.Widget`1";
+        private const string AttrNs = "Widgy.Core.Attributes.";
 
-        private static readonly DiagnosticDescriptor RuleWidgetSize = new(
-            IdWidgetSize, "Missing [WidgetSize]", "Widget class must have at least one [WidgetSize] attribute", "Usage", DiagnosticSeverity.Error, true);
+        private static readonly DiagnosticDescriptor RuleWidget = new DiagnosticDescriptor(
+            IdWidget, "Missing [Widget]", "Widget class '{0}' must have a [Widget] attribute", "Usage", DiagnosticSeverity.Error, true);
 
-        private static readonly DiagnosticDescriptor RuleNoRefresh = new(
-            IdNoRefresh, "Missing refresh strategy", "Widget must have exactly one refresh strategy attribute", "Usage", DiagnosticSeverity.Error, true);
+        private static readonly DiagnosticDescriptor RuleWidgetSize = new DiagnosticDescriptor(
+            IdWidgetSize, "Missing [WidgetSize]", "Widget class '{0}' must have at least one [WidgetSize] attribute", "Usage", DiagnosticSeverity.Error, true);
 
-        private static readonly DiagnosticDescriptor RuleMultipleRefresh = new(
-            IdMultipleRefresh, "Conflicting refresh strategies", "Widget must have at most one refresh strategy attribute", "Usage", DiagnosticSeverity.Error, true);
+        private static readonly DiagnosticDescriptor RuleNoRefresh = new DiagnosticDescriptor(
+            IdNoRefresh, "Missing refresh strategy", "Widget class '{0}' must have a refresh strategy attribute ([RefreshOnTick], [RefreshAdaptive] or [RefreshOnEvent])", "Usage", DiagnosticSeverity.Error, true);
 
-        private static readonly DiagnosticDescriptor RuleInvalidSize = new(
-            IdInvalidSize, "Invalid widget size", "Width must be 1-4, Height must be >= 1", "Usage", DiagnosticSeverity.Error, true);
+        private static readonly DiagnosticDescriptor RuleMultipleRefresh = new DiagnosticDescriptor(
+            IdMultipleRefresh, "Conflicting refresh strategies", "Widget class '{0}' must have only one refresh strategy attribute", "Usage", DiagnosticSeverity.Error, true);
 
-        public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(
+        private static readonly DiagnosticDescriptor RuleInvalidSize = new DiagnosticDescriptor(
+            IdInvalidSize, "Invalid widget size", "Width must be between 1 and 4 and height must be at least 1", "Usage", DiagnosticSeverity.Error, true);
+
+        public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = ImmutableArray.Create(
             RuleWidget, RuleWidgetSize, RuleNoRefresh, RuleMultipleRefresh, RuleInvalidSize);
 
         public override void Initialize(AnalysisContext context)
         {
+            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.EnableConcurrentExecution();
-            context.RegisterSyntaxNodeAction(AnalyzeType, SyntaxKind.ClassDeclaration);
+            context.RegisterCompilationStartAction(start =>
+            {
+                var widgetBase = start.Compilation.GetTypeByMetadataName(WidgetBaseMetadataName);
+                if (widgetBase == null) return;
+
+                var widgetAttr = start.Compilation.GetTypeByMetadataName(AttrNs + "WidgetAttribute");
+                var sizeAttr = start.Compilation.GetTypeByMetadataName(AttrNs + "WidgetSizeAttribute");
+                var tick = start.Compilation.GetTypeByMetadataName(AttrNs + "RefreshOnTickAttribute");
+                var adaptive = start.Compilation.GetTypeByMetadataName(AttrNs + "RefreshAdaptiveAttribute");
+                var onEvent = start.Compilation.GetTypeByMetadataName(AttrNs + "RefreshOnEventAttribute");
+
+                start.RegisterSymbolAction(
+                    ctx => AnalyzeType(ctx, widgetBase, widgetAttr, sizeAttr, tick, adaptive, onEvent),
+                    SymbolKind.NamedType);
+            });
         }
 
-        private void AnalyzeType(SyntaxNodeAnalysisContext context)
+        private static bool DerivesFromWidget(INamedTypeSymbol type, INamedTypeSymbol widgetBase)
         {
-            var classDecl = (ClassDeclarationSyntax)context.Node;
-            var model = context.SemanticModel;
-
-            var symbol = model.GetDeclaredSymbol(classDecl);
-            if (symbol == null) return;
-
-            var ns = symbol.ContainingNamespace;
-            if (ns.IsGlobalNamespace) return;
-
-            var baseType = symbol.BaseType;
-            if (baseType == null || baseType.Name != "Widget") return;
-
-            var allAttrs = new List<AttributeSyntax>();
-            foreach (var al in classDecl.AttributeLists)
+            for (var b = type.BaseType; b != null; b = b.BaseType)
             {
-                foreach (var a in al.Attributes)
-                {
-                    allAttrs.Add(a);
-                }
+                if (SymbolEqualityComparer.Default.Equals(b.OriginalDefinition, widgetBase)) return true;
             }
+            return false;
+        }
 
+        private static void AnalyzeType(SymbolAnalysisContext context, INamedTypeSymbol widgetBase,
+            INamedTypeSymbol? widgetAttr, INamedTypeSymbol? sizeAttr,
+            INamedTypeSymbol? tick, INamedTypeSymbol? adaptive, INamedTypeSymbol? onEvent)
+        {
+            var type = (INamedTypeSymbol)context.Symbol;
+            if (type.TypeKind != TypeKind.Class || type.IsAbstract) return;
+            if (!DerivesFromWidget(type, widgetBase)) return;
+
+            var location = type.Locations.Length > 0 ? type.Locations[0] : Location.None;
             var hasWidget = false;
-            var hasWidgetSize = false;
+            var sizeCount = 0;
             var refreshCount = 0;
-            var sizeAttrs = new List<AttributeSyntax>();
 
-            foreach (var attr in allAttrs)
+            foreach (var attr in type.GetAttributes())
             {
-                var name = attr.Name.ToString();
-                if (name == "Widget") hasWidget = true;
-                if (name == "WidgetSize")
+                var cls = attr.AttributeClass;
+                if (cls == null) continue;
+
+                if (Is(cls, widgetAttr)) hasWidget = true;
+                else if (Is(cls, tick) || Is(cls, adaptive) || Is(cls, onEvent)) refreshCount++;
+                else if (Is(cls, sizeAttr))
                 {
-                    hasWidgetSize = true;
-                    sizeAttrs.Add(attr);
-                }
-                if (name == "RefreshOnTick" || name == "RefreshAdaptive" || name == "RefreshOnEvent")
-                {
-                    refreshCount++;
-                }
-            }
-
-            if (!hasWidget)
-                context.ReportDiagnostic(Diagnostic.Create(RuleWidget, classDecl.GetLocation()));
-
-            if (!hasWidgetSize)
-                context.ReportDiagnostic(Diagnostic.Create(RuleWidgetSize, classDecl.GetLocation()));
-
-            if (refreshCount == 0)
-                context.ReportDiagnostic(Diagnostic.Create(RuleNoRefresh, classDecl.GetLocation()));
-
-            if (refreshCount > 1)
-                context.ReportDiagnostic(Diagnostic.Create(RuleMultipleRefresh, classDecl.GetLocation()));
-
-            foreach (var ws in sizeAttrs)
-            {
-                var args = ws.ArgumentList;
-                if (args == null) continue;
-
-                var argList = new List<Microsoft.CodeAnalysis.CSharp.Syntax.AttributeArgumentSyntax>();
-                foreach (var arg in args.Arguments)
-                {
-                    argList.Add(arg);
-                }
-
-                if (argList.Count >= 2)
-                {
-                    var w = ExtractLiteralInt(argList[0]);
-                    var h = ExtractLiteralInt(argList[1]);
-                    if (w != -1 && h != -1 && (w < 1 || w > 4 || h < 1))
+                    sizeCount++;
+                    var args = attr.ConstructorArguments;
+                    if (args.Length >= 2 && args[0].Value is int w && args[1].Value is int h
+                        && (w < 1 || w > 4 || h < 1))
                     {
-                        context.ReportDiagnostic(Diagnostic.Create(RuleInvalidSize, ws.GetLocation()));
+                        var loc = attr.ApplicationSyntaxReference?.GetSyntax(context.CancellationToken).GetLocation() ?? location;
+                        context.ReportDiagnostic(Diagnostic.Create(RuleInvalidSize, loc));
                     }
                 }
             }
+
+            if (!hasWidget) context.ReportDiagnostic(Diagnostic.Create(RuleWidget, location, type.Name));
+            if (sizeCount == 0) context.ReportDiagnostic(Diagnostic.Create(RuleWidgetSize, location, type.Name));
+            if (refreshCount == 0) context.ReportDiagnostic(Diagnostic.Create(RuleNoRefresh, location, type.Name));
+            if (refreshCount > 1) context.ReportDiagnostic(Diagnostic.Create(RuleMultipleRefresh, location, type.Name));
         }
 
-        private static int ExtractLiteralInt(Microsoft.CodeAnalysis.CSharp.Syntax.AttributeArgumentSyntax arg)
-        {
-            var expr = arg.Expression as Microsoft.CodeAnalysis.CSharp.Syntax.LiteralExpressionSyntax;
-            if (expr == null) return -1;
-            if (!expr.Token.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.NumericLiteralToken)) return -1;
-            if (expr.Token.Value is int v) return v;
-            if (expr.Token.Value is long vl) return (int)vl;
-            return -1;
-        }
+        private static bool Is(INamedTypeSymbol cls, INamedTypeSymbol? expected) =>
+            expected != null && SymbolEqualityComparer.Default.Equals(cls, expected);
     }
 }
