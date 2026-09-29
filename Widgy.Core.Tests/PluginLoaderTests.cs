@@ -119,6 +119,37 @@ public class TestWidget : Widget<TestCfg>
     }
 
     [Fact]
+    public void Reload_AllowsOldPluginContextToBeCollected()
+    {
+        var path = WritePlugin("test.widget");
+        _loader.ScanAndLoadPlugins(_dir);
+        var contextRef = CreateAndRenderWidget();
+
+        File.Delete(path);
+        _loader.ReloadPlugins();
+
+        // The loader nudges System.Text.Json's accessor cache ~1.5s after unload; allow for that.
+        for (var i = 0; i < 50 && contextRef.IsAlive; i++)
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            Thread.Sleep(100);
+        }
+        Assert.False(contextRef.IsAlive, "Unloaded plugin context is still referenced (leak on hot-reload).");
+    }
+
+    // Separate non-inlined method so no locals keep the widget or its context alive in the caller.
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private WeakReference CreateAndRenderWidget()
+    {
+        var config = new WidgetConfig { WidgetTypeId = "test.widget", Width = 1, Height = 1 };
+        var widget = _loader.CreateWidget(config)!;
+        using var bitmap = Widgy.Core.Rendering.PageRenderer.RenderToBitmap(
+            100, 100, new[] { (config, widget) }, Widgy.Core.Rendering.ThemeColors.DefaultDark, DateTime.Now);
+        return new WeakReference(AssemblyLoadContext.GetLoadContext(widget.GetType().Assembly));
+    }
+
+    [Fact]
     public void GarbageDll_IsSkipped_OthersStillLoad()
     {
         File.WriteAllText(Path.Combine(_dir, "bad.dll"), "this is not a .NET assembly");

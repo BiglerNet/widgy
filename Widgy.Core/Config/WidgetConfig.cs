@@ -46,8 +46,15 @@ namespace Widgy.Core.Config
             if (!typeof(WidgetConfig).IsAssignableFrom(configType))
                 throw new ArgumentException($"{configType} does not derive from {nameof(WidgetConfig)}.", nameof(configType));
 
-            var json = JsonSerializer.Serialize(this, GetType(), WidgyJson.Options);
-            return (WidgetConfig)(JsonSerializer.Deserialize(json, configType, WidgyJson.Options)
+            // Plugin config types live in collectible AssemblyLoadContexts. System.Text.Json caches type metadata
+            // per resolver and pools equivalent options globally, so a shared resolver would pin the plugin and
+            // block hot-reload unloading. A private resolver keeps that cache scoped to this call.
+            var options = new JsonSerializerOptions(WidgyJson.Options)
+            {
+                TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver(),
+            };
+            var json = JsonSerializer.Serialize(this, GetType(), options);
+            return (WidgetConfig)(JsonSerializer.Deserialize(json, configType, options)
                 ?? throw new InvalidOperationException($"Could not create {configType.Name} from config."));
         }
 

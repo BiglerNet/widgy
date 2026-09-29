@@ -98,12 +98,25 @@ namespace Widgy.Core.Plugin
 
         private void AwaitCollection(List<WeakReference> refs)
         {
-            for (var i = 0; i < 10 && refs.Any(r => r.IsAlive); i++)
+            // The host disposes widget views asynchronously after PluginsChanged, and System.Text.Json's
+            // emitted-accessor cache holds plugin config members for ~1s and only evicts on its next use,
+            // so allow a few seconds and nudge that cache once before declaring a leak.
+            var nudged = false;
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            while (refs.Any(r => r.IsAlive) && stopwatch.Elapsed < TimeSpan.FromSeconds(4))
             {
+                if (!nudged && stopwatch.Elapsed > TimeSpan.FromSeconds(1.5))
+                {
+                    NudgeJsonAccessorCache();
+                    nudged = true;
+                }
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
-                Thread.Sleep(50);
+                Thread.Sleep(100);
             }
+
+            if (!refs.Any(r => r.IsAlive))
+                WidgyLog.Info($"Unloaded plugin context(s) collected after {stopwatch.ElapsedMilliseconds} ms");
 
             var alive = refs.Count(r => r.IsAlive);
             if (alive > 0)
@@ -112,6 +125,21 @@ namespace Widgy.Core.Plugin
         }
 
         private void DeletePending() => _pendingDeletes.RemoveAll(TryDeleteDirectory);
+
+        private sealed class CacheNudge
+        {
+            public int Value { get; set; }
+        }
+
+        /// <summary>Touches System.Text.Json's member-accessor cache so it evicts expired (unloaded plugin) entries.</summary>
+        private static void NudgeJsonAccessorCache()
+        {
+            var options = new System.Text.Json.JsonSerializerOptions
+            {
+                TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver(),
+            };
+            System.Text.Json.JsonSerializer.Serialize(new CacheNudge(), options);
+        }
 
         private static bool TryDeleteDirectory(string path)
         {
