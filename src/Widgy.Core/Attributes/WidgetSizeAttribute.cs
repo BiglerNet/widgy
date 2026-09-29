@@ -1,17 +1,14 @@
-using System;
+namespace Widgy.Core.Attributes;
 
-namespace Widgy.Core.Attributes
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = true)]
+public sealed class WidgetSizeAttribute : Attribute
 {
-    [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = true)]
-    public sealed class WidgetSizeAttribute : Attribute
-    {
-        public int Width { get; }
-        public int Height { get; }
+    public int Width { get; }
+    public int Height { get; }
 
-        public WidgetSizeAttribute(int width, int height)
-        {
-            Width = width;
-            Height = height;
-        }
+    public WidgetSizeAttribute(int width, int height)
+    {
+        Width = width;
+        Height = height;
     }
 }

@@ -1,19 +1,16 @@
-using System;
-using System.Collections.Generic;
 using Widgy.Core.Config;
 using Widgy.Core.Interfaces;
 
-namespace Widgy.Core.Plugin
-{
-    public interface IPluginService
-    {
-        /// <summary>Raised (on a thread-pool thread) after plugins were reloaded because the plugin directory changed.</summary>
-        event Action? PluginsChanged;
+namespace Widgy.Core.Plugin;
 
-        void ScanAndLoadPlugins(string pluginDirectory);
-        void ReloadPlugins();
-        IReadOnlyList<string> GetRegisteredWidgetTypes();
-        WidgetDescriptor? GetDescriptor(string typeId);
-        IWidget? CreateWidget(WidgetConfig config);
-    }
+public interface IPluginService
+{
+    /// <summary>Raised (on a thread-pool thread) after plugins were reloaded because the plugin directory changed.</summary>
+    event Action? PluginsChanged;
+
+    void ScanAndLoadPlugins(string pluginDirectory);
+    void ReloadPlugins();
+    IReadOnlyList<string> GetRegisteredWidgetTypes();
+    WidgetDescriptor? GetDescriptor(string typeId);
+    IWidget? CreateWidget(WidgetConfig config);
 }

@@ -18,12 +18,14 @@ public class PluginLoaderTests : IDisposable
     public void Dispose()
     {
         _loader.Dispose();
-        try { Directory.Delete(_dir, recursive: true); } catch { /* best effort */ }
+        try
+        { Directory.Delete(_dir, recursive: true); }
+        catch { /* best effort */ }
     }
 
     private static byte[] BuildPlugin(string widgetId)
     {
-        var source = $@"
+        string source = $@"
 using SkiaSharp;
 using Widgy.Core;
 using Widgy.Core.Attributes;
@@ -39,8 +41,8 @@ public class TestWidget : Widget<TestCfg>
     public override void Render(WidgetRenderContext context) {{ }}
 }}";
         var refs = new List<MetadataReference>();
-        var tpa = (string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!;
-        foreach (var p in tpa.Split(Path.PathSeparator))
+        string tpa = (string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!;
+        foreach (string p in tpa.Split(Path.PathSeparator))
             refs.Add(MetadataReference.CreateFromFile(p));
 
         var compilation = CSharpCompilation.Create("TestPlugin_" + Guid.NewGuid().ToString("N"),
@@ -55,7 +57,7 @@ public class TestWidget : Widget<TestCfg>
 
     private string WritePlugin(string widgetId, string fileName = "TestPlugin.dll")
     {
-        var path = Path.Combine(_dir, fileName);
+        string path = Path.Combine(_dir, fileName);
         File.WriteAllBytes(path, BuildPlugin(widgetId));
         return path;
     }
@@ -80,7 +82,7 @@ public class TestWidget : Widget<TestCfg>
     [Fact]
     public void OriginalFile_IsNotLocked_WhileLoaded()
     {
-        var path = WritePlugin("test.widget");
+        string path = WritePlugin("test.widget");
         _loader.ScanAndLoadPlugins(_dir);
         Assert.Contains("test.widget", _loader.GetRegisteredWidgetTypes());
 
@@ -92,7 +94,7 @@ public class TestWidget : Widget<TestCfg>
     [Fact]
     public void Reload_PicksUpReplacedPlugin()
     {
-        var path = WritePlugin("test.widget");
+        string path = WritePlugin("test.widget");
         _loader.ScanAndLoadPlugins(_dir);
         Assert.Contains("test.widget", _loader.GetRegisteredWidgetTypes());
 
@@ -108,7 +110,7 @@ public class TestWidget : Widget<TestCfg>
     [Fact]
     public void Reload_AfterDelete_LeavesRegistryEmpty()
     {
-        var path = WritePlugin("test.widget");
+        string path = WritePlugin("test.widget");
         _loader.ScanAndLoadPlugins(_dir);
         Assert.NotEmpty(_loader.GetRegisteredWidgetTypes());
 
@@ -121,7 +123,7 @@ public class TestWidget : Widget<TestCfg>
     [Fact]
     public void Reload_AllowsOldPluginContextToBeCollected()
     {
-        var path = WritePlugin("test.widget");
+        string path = WritePlugin("test.widget");
         _loader.ScanAndLoadPlugins(_dir);
         var contextRef = CreateAndRenderWidget();
 
@@ -129,7 +131,7 @@ public class TestWidget : Widget<TestCfg>
         _loader.ReloadPlugins();
 
         // The loader nudges System.Text.Json's accessor cache ~1.5s after unload; allow for that.
-        for (var i = 0; i < 50 && contextRef.IsAlive; i++)
+        for (int i = 0; i < 50 && contextRef.IsAlive; i++)
         {
             GC.Collect();
             GC.WaitForPendingFinalizers();

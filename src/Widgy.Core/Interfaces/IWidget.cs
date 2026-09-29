@@ -1,43 +1,39 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Widgy.Core.Config;
 using Widgy.Core.Rendering;
 
-namespace Widgy.Core.Interfaces
+namespace Widgy.Core.Interfaces;
+
+/// <summary>
+/// Non-generic widget contract the host talks to. Widget authors normally derive from
+/// <see cref="Widget{TConfig}"/> rather than implementing this directly.
+/// </summary>
+public interface IWidget
 {
+    string Name { get; }
+    string Description { get; }
+    string Category { get; }
+    System.Drawing.Size[] SupportedSizes { get; }
+    Type ConfigType { get; }
+    WidgetConfig Config { get; }
+
+    /// <summary>Applies a configuration; <paramref name="config"/> must be an instance of <see cref="ConfigType"/>.</summary>
+    void Configure(WidgetConfig config);
+
     /// <summary>
-    /// Non-generic widget contract the host talks to. Widget authors normally derive from
-    /// <see cref="Widget{TConfig}"/> rather than implementing this directly.
+    /// Refreshes widget data (network, sensors, ...). Called off the render path on each refresh
+    /// before the widget is redrawn. Must not touch the canvas.
     /// </summary>
-    public interface IWidget
-    {
-        string Name { get; }
-        string Description { get; }
-        string Category { get; }
-        System.Drawing.Size[] SupportedSizes { get; }
-        Type ConfigType { get; }
-        WidgetConfig Config { get; }
+    Task UpdateAsync(CancellationToken cancellationToken);
 
-        /// <summary>Applies a configuration; <paramref name="config"/> must be an instance of <see cref="ConfigType"/>.</summary>
-        void Configure(WidgetConfig config);
+    /// <summary>
+    /// Draws the widget. Called on the UI thread; must be synchronous and fast. The canvas is only
+    /// valid for the duration of the call.
+    /// </summary>
+    void Render(WidgetRenderContext context);
+}
 
-        /// <summary>
-        /// Refreshes widget data (network, sensors, ...). Called off the render path on each refresh
-        /// before the widget is redrawn. Must not touch the canvas.
-        /// </summary>
-        Task UpdateAsync(CancellationToken cancellationToken);
-
-        /// <summary>
-        /// Draws the widget. Called on the UI thread; must be synchronous and fast. The canvas is only
-        /// valid for the duration of the call.
-        /// </summary>
-        void Render(WidgetRenderContext context);
-    }
-
-    public interface IWidget<TConfig> : IWidget where TConfig : WidgetConfig, new()
-    {
-        new TConfig Config { get; }
-        TConfig DefaultConfig { get; }
-    }
+public interface IWidget<TConfig> : IWidget where TConfig : WidgetConfig, new()
+{
+    new TConfig Config { get; }
+    TConfig DefaultConfig { get; }
 }

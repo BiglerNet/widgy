@@ -9,9 +9,9 @@ public class WidgetConfigTests
     [Fact]
     public void Serialize_IncludesAllPublicProperties()
     {
-        var json = JsonSerializer.Serialize(new WidgetConfig { WidgetTypeId = "clock" });
+        string json = JsonSerializer.Serialize(new WidgetConfig { WidgetTypeId = "clock" });
         using var doc = JsonDocument.Parse(json);
-        foreach (var key in new[] { "typeId", "col", "row", "width", "height", "parameters", "isVisible" })
+        foreach (string? key in new[] { "typeId", "col", "row", "width", "height", "parameters", "isVisible" })
             Assert.True(doc.RootElement.TryGetProperty(key, out _), key);
     }
 
@@ -34,13 +34,15 @@ public class ConfigStoreTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_dir, true); } catch { }
+        try
+        { Directory.Delete(_dir, true); }
+        catch { }
     }
 
     [Fact]
     public void MissingFile_CreatesFileWithOneDefaultPage()
     {
-        var path = Path.Combine(_dir, "widgy-config.json");
+        string path = Path.Combine(_dir, "widgy-config.json");
         var store = new ConfigStore(path);
         Assert.True(File.Exists(path));
         Assert.Single(store.Config.Pages);
@@ -50,7 +52,7 @@ public class ConfigStoreTests : IDisposable
     [Fact]
     public void LoadedWidget_RoundTripsGridFields()
     {
-        var path = Path.Combine(_dir, "widgy-config.json");
+        string path = Path.Combine(_dir, "widgy-config.json");
         File.WriteAllText(path, "{\"pages\":[{\"name\":\"Main\",\"widgets\":[{\"typeId\":\"clock\",\"col\":1,\"row\":2,\"width\":3,\"height\":4}]}]}");
         var store = new ConfigStore(path);
         var w = store.Config.Pages[0].Widgets.Single();

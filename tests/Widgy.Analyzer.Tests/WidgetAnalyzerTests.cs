@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
-using Widgy.Analyzer;
 using Xunit;
 
 namespace Widgy.Analyzer.Tests;
@@ -33,12 +32,12 @@ public class Cfg : WidgetConfig { }
 
     private static string[] Run(string attrs, string decl = "public class W : Widget<Cfg>", string? extra = null)
     {
-        var source = Usings + (extra ?? "") + attrs + "\n" + decl + Body;
+        string source = Usings + (extra ?? "") + attrs + "\n" + decl + Body;
         var tree = CSharpSyntaxTree.ParseText(source);
 
         var refs = new List<MetadataReference>();
-        var tpa = (string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!;
-        foreach (var p in tpa.Split(Path.PathSeparator))
+        string tpa = (string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!;
+        foreach (string p in tpa.Split(Path.PathSeparator))
             refs.Add(MetadataReference.CreateFromFile(p));
         refs.Add(MetadataReference.CreateFromFile(typeof(Widgy.Core.Attributes.WidgetAttribute).Assembly.Location));
         refs.Add(MetadataReference.CreateFromFile(typeof(SkiaSharp.SKCanvas).Assembly.Location));
@@ -47,7 +46,7 @@ public class Cfg : WidgetConfig { }
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         // Sanity: no compile errors in the test source itself.
-        var compileErrors = compilation.GetDiagnostics()
+        string[] compileErrors = compilation.GetDiagnostics()
             .Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => d.ToString()).ToArray();
         Assert.Empty(compileErrors);
 

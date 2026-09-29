@@ -1,10 +1,9 @@
-namespace Widgy.Core.Enums
+namespace Widgy.Core.Enums;
+
+public enum TimeUnit
 {
-    public enum TimeUnit
-    {
-        Seconds,
-        Minutes,
-        Hours,
-        Milliseconds
-    }
+    Seconds,
+    Minutes,
+    Hours,
+    Milliseconds
 }

@@ -1,10 +1,9 @@
-namespace Widgy.Core.Attributes
+namespace Widgy.Core.Attributes;
+
+public enum RefreshStrategy
 {
-    public enum RefreshStrategy
-    {
-        None,
-        OnTick,
-        OnEvent,
-        Adaptive
-    }
+    None,
+    OnTick,
+    OnEvent,
+    Adaptive
 }
