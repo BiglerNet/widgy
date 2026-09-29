@@ -8,7 +8,7 @@ It is a .NET 10 WPF application that draws each widget with SkiaSharp. Widgets a
 
 Phase 1 (foundation) is implemented: widget SDK and Roslyn analyzer, hot-reloading plugin loader, grid layout, the WPF host with per-monitor DPI handling, JSON config with hot-reload, and a built-in Clock widget. Verified on the real 1100x3840 panel.
 
-Not done yet: an editor UI, other widgets, the `[RefreshOnEvent]` event bus (such widgets render once), adaptive refresh scaling (`[RefreshAdaptive]` currently runs at its minimum interval), a theme engine and a monitor picker (both proposed under `openspec/changes/`). Memory use is currently about 139 MB working set, above the 50 MB goal.
+Not done yet: an editor UI, other widgets, the `[RefreshOnEvent]` event bus (such widgets render once), adaptive refresh scaling (`[RefreshAdaptive]` currently runs at its minimum interval), a theme engine and a monitor picker (both proposed under `openspec/changes/`). Memory use is about 66 MB private / 115 MB working set in Release with software composition (see `docs/perf/memory-investigation.md`); an empty WPF window alone is ~53 MB private, so the original 50 MB goal is not reachable with WPF.
 
 ## Requirements
 

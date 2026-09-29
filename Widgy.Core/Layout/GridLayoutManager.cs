@@ -12,9 +12,6 @@ namespace Widgy.Core.Layout
         public double ColumnWidth => ScreenWidth / 4;
         public double RowHeight => ColumnWidth;
 
-#pragma warning disable CS0067
-        public event Action<Size>? MonitorChanged;
-#pragma warning restore CS0067
 
         public GridLayoutManager(double screenWidth, double screenHeight)
         {
@@ -63,7 +60,7 @@ namespace Widgy.Core.Layout
                 if (clampedCol != widget.Col || clampedWidth != widget.Width
                     || clampedRow != widget.Row || clampedHeight != widget.Height)
                 {
-                    System.Diagnostics.Trace.TraceWarning($"Widget {widget.WidgetTypeId} position clamped from ({widget.Col},{widget.Row})[{widget.Width}x{widget.Height}] to ({clampedCol},{clampedRow})[{clampedWidth}x{clampedHeight}]");
+                    Widgy.Core.Diagnostics.WidgyLog.Warn($"Widget {widget.WidgetTypeId} position clamped from ({widget.Col},{widget.Row})[{widget.Width}x{widget.Height}] to ({clampedCol},{clampedRow})[{clampedWidth}x{clampedHeight}]");
                 }
 
                 var pixelPos = new System.Drawing.Point(

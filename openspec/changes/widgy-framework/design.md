@@ -120,7 +120,7 @@ The `plugins/` directory is watched (`FileSystemWatcher`, 500ms debounce). On ch
 
 **Rationale:** `Assembly.LoadFrom` (the original plan) locks the DLL so it cannot be rebuilt while Widgy runs, and can never be unloaded or replaced. A collectible ALC plus shadow copy makes plugin development a live loop and lets a plugin be removed or restored while running.
 
-**Known caveat:** unit tests show unloaded contexts are collectible off-screen (with a short wait for `System.Text.Json`'s accessor cache to expire). In the live WPF host an unloaded context may not be collected yet — something in the host may still reference plugin types. This is under investigation; the loader logs a warning if a context is still alive 4s after unload.
+**WPF pinning (resolved):** WPF's `MS.Internal.*.SafeSecurityHelper` keeps a static, never-evicted assembly cache that rooted collectible plugin assemblies (found via `gcroot` on the plugin's `LoaderAllocator`). On `PluginsChanged` the host disposes widget views and evicts collectible assemblies from those caches (`Widgy.Host/WpfAssemblyCache.cs`, best-effort reflection on WPF internals). `WidgetConfig.ToConcrete` uses a private System.Text.Json resolver so the shared options cache doesn't pin plugin config types, and the loader nudges STJ's ~1s accessor cache before checking collection. Verified live: the old context is collected ~1.9s after unload.
 
 ### Decision 7: Configuration — JSON with hot-reload, widget settings as extra properties
 
@@ -174,8 +174,8 @@ The runtime only starts timers for widgets that declare a timer-based refresh. N
 
 | Risk | Mitigation |
 |------|-----------|
-| **Memory goal (< 50MB) is not met.** The Release build measures ~139 MB working set / ~125 MB private with a single Clock widget; the WPF baseline is large. | Open question. An investigation is in progress (findings to land in `docs/perf/memory-investigation.md`). The goal is kept as a target, not claimed as achieved. |
-| Unloaded plugin contexts may not be collected in the live WPF host | Under investigation; the loader logs a warning when a context is still alive after unload. Shadow directories are cleaned on next start regardless. |
+| **Memory goal (< 50MB) is not met.** Release with software-only WPF composition (now the default; `WIDGY_HWRENDER=1` opts out) measures ~66 MB private / ~115 MB working set with one Clock; an empty WPF window is ~53 MB private. GC/JIT/ReadyToRun settings measured as no-ops. See `docs/perf/memory-investigation.md`. | Open decision: restate the goal for a WPF host (~65 MB private) or move rendering to a plain Win32 window + Skia (est. 20-30 MB, unmeasured). |
+| WPF internals pin collectible plugin assemblies | Worked around via `WpfAssemblyCache` (reflection on private WPF fields). If a future WPF update renames them, the purge logs a warning and hot-reloaded plugin versions stay in memory until restart (functionally still correct). |
 | `SKElement` is software-rasterized at physical resolution; many large widgets at 1100×3840 could get heavy | Widgets repaint only on their own timer; measure before adding animated widgets. A GPU-backed surface could be revisited. |
 | Grid with square cells may look odd on non-square monitors | RowHeight = ColumnWidth is the natural choice for a 4-column grid; verified on the 1100×3840 panel (275px cells) and after retargeting to a 1080×1920 monitor. |
 | Hot-reload via `FileSystemWatcher` may miss or duplicate rapid saves | Debounce (500ms plugins, 1s config); config keeps last good state on parse errors. |

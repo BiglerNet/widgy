@@ -64,8 +64,8 @@ Status legend: `[x]` done and verified against the code; `[ ]` open. Task wordin
 - [x] 5.1 `Layout/GridCell.cs` — Col, Row, Width, Height plus `Overlaps`/`Contains` helpers
 - [x] 5.2 `Layout/GridLayoutManager.cs` — ColumnWidth, RowHeight, `ConvertToPixels`, `ConvertSizeToPixels`, `ValidatePosition`, `RenderWidgetLayout(widgets, screenDims)` returning `List<WidgetLayoutItem>`
 - [x] 5.3 `Layout/WidgetLayoutItem.cs` — WidgetTypeId, Position, Size, GridSize
-- [x] 5.4 Layout validation: clamp width to 1–4 first, then col to `0..4-width`, row ≥ 0, height ≥ 1, and log a warning when clamping (the warning currently goes through `Trace.TraceWarning`, not `WidgyLog` — see 10.6)
-- [x] 5.5 Monitor changes recalculate the grid: the layout is a pure function of screen size and the host rebuilds it whenever the window size changes (monitor retarget, DPI change, config change). NOTE: the originally planned `MonitorChanged` event / `RecalculateColumns()` on `GridLayoutManager` do not exist as designed — the event is declared but never raised (see 10.6)
+- [x] 5.4 Layout validation: clamp width to 1–4 first, then col to `0..4-width`, row ≥ 0, height ≥ 1, and log a warning when clamping (logged via `WidgyLog`)
+- [x] 5.5 Monitor changes recalculate the grid: the layout is a pure function of screen size and the host rebuilds it whenever the window size changes (monitor retarget, DPI change, config change). The originally planned `MonitorChanged` event / `RecalculateColumns()` were dropped as unnecessary (see 10.6)
 - [x] 5.6 Verify grid conversion for 1100 (275px cells), 3840×2160 and 7680×2160 in `Widgy.Core.Tests/GridLayoutTests.cs`, using the corrected spec values
 
 ## 6. Host Shell (Widgy.Host)
@@ -127,9 +127,9 @@ Status legend: `[x]` done and verified against the code; `[ ]` open. Task wordin
 
 - [ ] 10.1 Implement the `[RefreshOnEvent]` event channel/bus (publish/subscribe by event name, thread marshalling to the UI, survives plugin reload); until then such widgets render once on load
 - [ ] 10.2 Implement `[RefreshAdaptive]` scaling between `MinMs` and `MaxMs` based on system load; currently runs at `MinMs`
-- [ ] 10.3 Memory: reach the < 50MB goal or revise it. Currently ~139 MB working set / ~125 MB private in Release (WPF baseline). Investigation in progress (`docs/perf/memory-investigation.md`)
-- [ ] 10.4 Verify unloaded plugin contexts are actually collected in the live WPF host (they are collectible in unit tests; the loader logs a warning if one survives)
+- [ ] 10.3 Memory: decide between revising the < 50MB goal for a WPF host (~66 MB private / 115 MB WS measured with software composition, now the default) or a Win32 + Skia host. Findings in `docs/perf/memory-investigation.md`
+- [x] 10.4 Unloaded plugin contexts are collected in the live WPF host (fixed WPF `SafeSecurityHelper` cache pinning and System.Text.Json caching; verified ~1.9s after unload)
 - [ ] 10.5 Consume `dock`, `theme` and `background` config fields in the host (currently persisted only)
-- [ ] 10.6 Small cleanups: route the layout clamp warning through `WidgyLog`; remove or wire the unused `GridLayoutManager.MonitorChanged` event
+- [x] 10.6 Small cleanups: layout clamp warning goes through `WidgyLog`; unused `GridLayoutManager.MonitorChanged` event removed
 - [ ] 10.7 Move widget styling (panel card, fonts) into a shared theme engine (proposed as the `theme-engine` change)
 - [ ] 10.8 Monitor picker and robust display handling (proposed as the `display-targeting` change)
