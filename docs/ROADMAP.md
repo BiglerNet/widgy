@@ -20,7 +20,10 @@ change under `openspec/changes/`. Work one item per session.
    - Screen capture on Windows: use Windows PowerShell 5.1 (`powershell.exe`, not `pwsh`), call
      `SetProcessDpiAwarenessContext(-4)` first, then `Graphics.CopyFromScreen` of the monitor bounds.
      `PrintWindow` on the WPF window returns blank. Prefer one capture, or ask the user to look.
-4. Conventional commits (`feat(scope): ...`, `fix`, `docs`, `test`, `perf`, `refactor`, `chore`), branch off `main`.
+4. Never commit to `main`. Branch off it (`feat/...`, `fix/...`, `docs/...`, `chore/...`), push, and open a pull
+   request; PRs are squash-merged once CI is green. The PR title is a conventional commit
+   (`feat(scope): ...`, `fix`, `docs`, `test`, `perf`, `refactor`, `chore`) and the PR description becomes the body of
+   the squashed commit, so write both for the changelog reader. See "Git workflow" in item 1.
 5. Archive the OpenSpec change when all its tasks are done.
 
 Suggested model per item is noted as **Model**. Items marked Opus involve architecture decisions or hard debugging;
@@ -69,6 +72,23 @@ Tasks:
 - GitHub Actions CI on `windows-latest`: build, test, `dotnet format --verify-no-changes`, `openspec validate --all --strict`.
 - Decide with the owner: license; product name is not final, so keep the name easy to change (namespaces, exe name).
 - Placeholder app icon (task 9.1/9.2 of `widgy-framework`); final branding deferred.
+
+### Git workflow and GitHub maintenance
+
+All work happens on a short-lived branch and lands on `main` through a pull request. Nobody (including admins and
+agents) pushes to `main` directly. Configure on GitHub (repo settings + a ruleset on `main`), and document in
+`CONTRIBUTING.md`:
+
+- Ruleset on `main`: require a pull request (no direct pushes, no force pushes, no deletion), require the CI status
+  check(s) to pass with branches up to date, require linear history, require conversations resolved. No bypass
+  for admins.
+- Merge methods: squash only (disable merge commits and rebase merges), which also guarantees linear history.
+- Squash commit defaults: title = PR title, body = PR description (`squash_merge_commit_title: PR_TITLE`,
+  `squash_merge_commit_message: PR_BODY`), so the PR text is the commit text.
+- Delete head branches automatically after merge; enable "always suggest updating pull request branches".
+- Pull request template (summary, linked OpenSpec change, verification done, perf impact) and a conventional-commit
+  PR title check in CI.
+- Optional: Dependabot for NuGet and GitHub Actions; `CODEOWNERS` once there is more than one maintainer.
 
 ## 2. Roadmap document
 
