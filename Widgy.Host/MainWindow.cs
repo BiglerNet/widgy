@@ -53,7 +53,14 @@ namespace Widgy.Host
                 Retarget("config changed");
                 ScheduleRebuild(force: true);
             });
-            _plugins.PluginsChanged += () => Dispatcher.BeginInvoke(() => ScheduleRebuild(force: true));
+            _plugins.PluginsChanged += () => Dispatcher.BeginInvoke(() =>
+            {
+                // Drop views holding old plugin instances now (not at the next idle rebuild) so the old
+                // plugin contexts can be collected, then clear WPF's static cache that also pins them.
+                DisposeViews();
+                WpfAssemblyCache.EvictCollectibleAssemblies();
+                ScheduleRebuild(force: true);
+            });
 
             // Monitors can come back from sleep/hot-plug in any order and settle their DPI late, so
             // re-evaluate the target a few times after each change instead of trusting the first event.
@@ -137,9 +144,7 @@ namespace Widgy.Host
             if (screen == _lastLayoutSize) return;
             _lastLayoutSize = screen;
 
-            foreach (var view in _views) view.Dispose();
-            _views.Clear();
-            _surface.Children.Clear();
+            DisposeViews();
 
             var page = _configStore.Config.CurrentPage;
             if (page == null || screen.Width < 16 || screen.Height < 16) return;
@@ -183,6 +188,13 @@ namespace Widgy.Host
             }
         }
 
+        private void DisposeViews()
+        {
+            foreach (var view in _views) view.Dispose();
+            _views.Clear();
+            _surface.Children.Clear();
+        }
+
         protected override void OnKeyDown(KeyEventArgs e)
         {
             if (e.Key == Key.Escape) Close();
@@ -195,8 +207,7 @@ namespace Widgy.Host
             SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
             SystemEvents.PowerModeChanged -= OnPowerModeChanged;
             foreach (var t in _pendingRetargets) t.Stop();
-            foreach (var view in _views) view.Dispose();
-            _views.Clear();
+            DisposeViews();
             base.OnClosed(e);
         }
     }
