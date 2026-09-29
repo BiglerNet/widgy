@@ -49,7 +49,7 @@ The host MUST ship built-in themes and support user-provided themes:
 ### Requirement: Theme Selection and Hot-Reload
 The active theme MUST be selected by the `theme` key in the configuration and applied without restarting:
 
-- Changing `theme` in `widgy-config.json` (or editing the active theme file) repaints all widgets with the new theme
+- Changing `theme` in `urdeck-config.json` (or editing the active theme file) repaints all widgets with the new theme
 - An unknown theme name falls back to the default theme and logs a warning naming the missing theme
 - The window background follows the theme's background color
 

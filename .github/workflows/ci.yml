@@ -30,19 +30,19 @@ jobs:
           node-version: 22
 
       - name: Restore
-        run: dotnet restore widgy.slnx
+        run: dotnet restore urdeck.slnx
 
       - name: Format
-        run: dotnet format widgy.slnx --no-restore --verify-no-changes --severity warn
+        run: dotnet format urdeck.slnx --no-restore --verify-no-changes --severity warn
 
       - name: Build
-        run: dotnet build widgy.slnx -c Release --no-restore
+        run: dotnet build urdeck.slnx -c Release --no-restore
 
       - name: Test
-        run: dotnet test widgy.slnx -c Release --no-build
+        run: dotnet test urdeck.slnx -c Release --no-build
 
-      - name: Coverage floor (Widgy.Core)
-        run: dotnet test tests/Widgy.Core.Tests -c Release --no-build -p:CollectCoverage=true
+      - name: Coverage floor (UrDeck.Core)
+        run: dotnet test tests/UrDeck.Core.Tests -c Release --no-build -p:CollectCoverage=true
 
       - name: Validate OpenSpec
         run: npx --yes @fission-ai/openspec@1.7.0 validate --all --strict

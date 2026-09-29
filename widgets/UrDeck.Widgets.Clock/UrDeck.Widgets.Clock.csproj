@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(UrDeckTfm)</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- UrDeck.Core and SkiaSharp are provided by the host at runtime; don't copy them next to the plugin. -->
+    <ProjectReference Include="..\..\src\UrDeck.Core\UrDeck.Core.csproj" Private="false" />
+    <ProjectReference Include="..\..\src\UrDeck.Analyzer\UrDeck.Analyzer.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <OutputItemType>Analyzer</OutputItemType>
+    </ProjectReference>
+  </ItemGroup>
+
+</Project>

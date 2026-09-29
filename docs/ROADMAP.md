@@ -1,6 +1,6 @@
-# Widgy Roadmap
+# UrDeck Roadmap
 
-Widgy is a lightweight, extensible widget dashboard for secondary/case displays (first target: the HYTE Y70 Touch
+UrDeck is a lightweight, extensible widget dashboard for secondary/case displays (first target: the HYTE Y70 Touch
 1100x3840 portrait panel), replacing HYTE Nexus. Priorities: low resource use, great visuals, a modular widget SDK,
 a WYSIWYG editor, and touch.
 
@@ -13,9 +13,9 @@ change under `openspec/changes/`. Work one item per session.
    it doesn't exist yet; `openspec validate --all --strict` must pass).
 2. Implement against `tasks.md`, ticking tasks only when verified.
 3. Verify:
-   - `dotnet build widgy.slnx` (0 warnings) and `dotnet test widgy.slnx`. `AGENTS.md` has the full command list.
-   - Rendering without a screen: `Widgy.Host.exe --snapshot out.png --size 1100x3840` (from the host's bin folder).
-   - On the real panel: launch detached (the app otherwise blocks the shell), read `widgy.log` next to the exe.
+   - `dotnet build urdeck.slnx` (0 warnings) and `dotnet test urdeck.slnx`. `AGENTS.md` has the full command list.
+   - Rendering without a screen: `UrDeck.Host.exe --snapshot out.png --size 1100x3840` (from the host's bin folder).
+   - On the real panel: launch detached (the app otherwise blocks the shell), read `urdeck.log` next to the exe.
      It logs monitors, actual vs. target window bounds, placed widgets, reloads and warnings.
    - Screen capture on Windows: use Windows PowerShell 5.1 (`powershell.exe`, not `pwsh`), call
      `SetProcessDpiAwarenessContext(-4)` first, then `Graphics.CopyFromScreen` of the monitor bounds.
@@ -31,7 +31,7 @@ everything else should be fine on Sonnet.
 
 ## Current state (2026-09-29)
 
-- `widgy-framework` change (Phase 1 foundation) is nearly complete: SDK, analyzer, plugin loader with hot-reload
+- `urdeck-framework` change (Phase 1 foundation) is nearly complete: SDK, analyzer, plugin loader with hot-reload
   (collectible AssemblyLoadContext), grid layout, WPF host with per-monitor DPI placement, Clock widget, tests.
 - Proposed, not started: `theme-engine`, `display-targeting`.
 - Memory: ~66 MB private / ~115 MB working set (Release, one Clock, software WPF composition). Idle CPU negligible.
@@ -49,30 +49,30 @@ Layout (done; monorepo; first-party widgets live here, community widgets in thei
 
 ```
 src/
-  Widgy.Core/            # SDK (becomes the Widgy.Sdk NuGet package later)
-  Widgy.Analyzer/
-  Widgy.Host/
-widgets/                 # first-party widget plugins (Widgy.Widgets.Clock, ...)
+  UrDeck.Core/            # SDK (becomes the UrDeck.Sdk NuGet package later)
+  UrDeck.Analyzer/
+  UrDeck.Host/
+widgets/                 # first-party widget plugins (UrDeck.Widgets.Clock, ...)
 tests/
-  Widgy.Core.Tests/
-  Widgy.Analyzer.Tests/
+  UrDeck.Core.Tests/
+  UrDeck.Analyzer.Tests/
 docs/                    # ROADMAP.md, perf/, architecture notes
 openspec/
 ```
 
 Tasks:
-- [x] Move projects; the host build still copies first-party widgets into `plugins/`. Solution is now `widgy.slnx`.
+- [x] Move projects; the host build still copies first-party widgets into `plugins/`. Solution is now `urdeck.slnx`.
 - [x] `Directory.Build.props`: shared TFMs, `Nullable`, `ImplicitUsings`, `LangVersion`, `TreatWarningsAsErrors`,
   `EnforceCodeStyleInBuild`. `Directory.Packages.props` for central package versions (SkiaSharp 3.119.4, xunit, Roslyn).
 - [x] `.editorconfig`: file-scoped namespaces (convert existing block namespaces), `var` usage, naming (`_camelCase`
   fields), brace/newline rules, CRLF handling consistent with `.gitattributes`. Run `dotnet format` once to apply.
-- [x] Test coverage with coverlet (`dotnet test tests/Widgy.Core.Tests -p:CollectCoverage=true`); floor for Widgy.Core is 65% line (measured 70.6%).
+- [x] Test coverage with coverlet (`dotnet test tests/UrDeck.Core.Tests -p:CollectCoverage=true`); floor for UrDeck.Core is 65% line (measured 70.6%).
 - [x] `AGENTS.md` (build/test/verify commands, conventions, the Windows/WPF gotchas above; `CLAUDE.md` can point to it).
 - [x] `CONTRIBUTING.md`: move the widget-authoring section out of README; add performance budgets (item 4) and the
   review checklist.
 - [x] GitHub Actions CI on `windows-latest`: build, test, `dotnet format --verify-no-changes`, `openspec validate --all --strict`.
-- [ ] Decide with the owner: license; product name is not final, so keep the name easy to change (namespaces, exe name).
-- [ ] Placeholder app icon (task 9.1/9.2 of `widgy-framework`); final branding deferred.
+- [x] Product name decided: **UrDeck**. License decided: see "Naming, licensing and hosting" below.
+- [ ] Placeholder app icon (task 9.1/9.2 of `urdeck-framework`); final logo/branding deferred.
 
 ### Git workflow and GitHub maintenance
 
@@ -94,23 +94,45 @@ agents) pushes to `main` directly. Configure on GitHub (repo settings + a rulese
   PR title check in CI.
 - Optional: Dependabot for NuGet and GitHub Actions; `CODEOWNERS` once there is more than one maintainer.
 
+### Naming, licensing and hosting (decided 2026-09-29)
+
+- [x] **Name:** UrDeck (short for "your deck"). Renamed from Widgy: namespaces, assemblies, exe, config (`urdeck-config.json`),
+  log (`urdeck.log`), widget type ids (`urdeck.widgets.clock`), analyzer ids (`URDECK001-005`), env vars.
+- [ ] **GitHub:** move the repo to a dedicated `urdeck` org as `urdeck/urdeck` (GitHub redirects the old URL); reserve the
+  `UrDeck.` NuGet prefix; claim `urdeck.app` / `urdeck.dev`.
+- [ ] **Licenses** (one PR: per-directory `LICENSE` files, SPDX in `Directory.Build.props`/`PackageLicenseExpression`,
+  README license map):
+  - Host, engine and official widgets: **GPL-3.0-or-later** with a GPLv3 section 7 **plugin exception**: widgets that use only
+    the public SDK API may be under any license.
+  - SDK and analyzer (`UrDeck.Sdk`): **MIT**. Templates and example widgets: MIT (so copying them does not make a
+    community widget GPL). Fonts, icons, themes and logo: licensed separately.
+  - Community widgets: the author chooses. Contributions are inbound=outbound (no DCO/CLA before 1.0 or the first
+    outside contribution; revisit if dual licensing is ever wanted).
+- [ ] **SDK/Engine split** (before the theme engine, item 5): the license boundary must be an assembly boundary. Split
+  `UrDeck.Core` into `UrDeck.Sdk` (MIT: attributes, `Widget<T>`, render context, theme types, analyzer bundled) and
+  `UrDeck.Engine` (GPL: plugin loader, config store, grid layout, `PageRenderer`). Widgets reference only the SDK.
+  The SDK is not widget-only: data providers, display backends and theme packs will use it too.
+- **Repo strategy:** monorepo through 1.0 (atomic SDK/engine/host/widget changes while the API churns). Later, split along
+  the existing seams: `urdeck/widget-template` (MIT template repo, worth doing soon) and a git-based marketplace
+  registry repo (see item 13). Split the SDK out only once it is stable.
+
 ## 2. Roadmap document
 
 This file. Keep "Current state" and item status up to date at the end of each session.
 
-## 3. Finish refresh strategies, then archive `widgy-framework`
+## 3. Finish refresh strategies, then archive `urdeck-framework`
 
 **Why:** the SDK promises three refresh strategies; only `[RefreshOnTick]` fully works.
 **Model:** Sonnet (Opus if the event-bus design gets contentious).
 
-- `[RefreshOnEvent("name")]` (task 10.1): an in-process event bus in Widgy.Core. Publishers (future data providers
+- `[RefreshOnEvent("name")]` (task 10.1): an in-process event bus in UrDeck.Core. Publishers (future data providers
   like a sensor service) publish by name; the host marshals to the UI thread and invalidates subscribed widgets.
   Subscriptions must be dropped on plugin reload. Today such widgets render once.
 - `[RefreshAdaptive(minMs, maxMs)]` (task 10.2): scale the interval between min and max based on system load
   (e.g. process/system CPU) or on-battery; today it runs at `minMs`.
 - Skip redundant redraws: let a widget report "nothing changed" (e.g. `UpdateAsync` returning a bool, or a
   `bool NeedsRender(DateTime now)`); the Clock should repaint once a minute, not every second.
-- Placeholder icon (see item 1), then run the OpenSpec archive workflow for `widgy-framework`.
+- Placeholder icon (see item 1), then run the OpenSpec archive workflow for `urdeck-framework`.
 
 ## 4. Performance budgets and measurement
 
@@ -120,7 +142,7 @@ This file. Keep "Current state" and item status up to date at the end of each se
 - Budgets: host runtime baseline 60-70 MB private; editor is secondary; per-widget budgets with tiers
   (e.g. gold < 5 MB, silver < 10 MB, bronze above), expressed **per grid size** because the render surface
   (width x height x 4 bytes) dominates per-widget memory.
-- Measurement: a benchmark mode (e.g. `Widgy.Host.exe --bench <widgetId> --size 4x2`) that runs the host with only
+- Measurement: a benchmark mode (e.g. `UrDeck.Host.exe --bench <widgetId> --size 4x2`) that runs the host with only
   that widget and reports the delta from an empty page (private bytes, working set), plus per-widget render time,
   update time and allocations per frame (`GC.GetAllocatedBytesForCurrentThread` around `Render`/`UpdateAsync`).
   Per-widget memory can't be isolated precisely inside a shared process; isolation runs are the fair measure.
@@ -169,11 +191,14 @@ widget palette with performance tiers. Likely a separate window on the primary m
 
 ## 12. Packaging and distribution
 
-Installer, start with Windows, tray icon, auto-update, final product name and branding. **Model:** Sonnet.
+Installer, start with Windows, tray icon, auto-update, logo and branding, winget manifest and GitHub release automation. **Model:** Sonnet.
 
 ## 13. SDK distribution and other displays
 
-- Publish the SDK as a NuGet package with the analyzer bundled; a `dotnet new` widget template.
+- Publish `UrDeck.Sdk` as a NuGet package with the analyzer bundled; a `dotnet new` widget template.
+- Marketplace: start as a git-based registry repo (winget-pkgs / Scoop bucket model): widgets are added by PR with a
+  manifest (id, version, SDK version range, SPDX license, requested capabilities, file hash); CI validates it and the
+  host reads a static index. Widgets are unsandboxed .NET DLLs, so plan signing/review and capability declarations early.
 - Cross-brand support: some case screens are Windows monitors (like the Y70), others are USB LCDs driven by vendor
   protocols. `PageRenderer` already renders a page to a bitmap, which is the basis for "display backends" that push
   frames to non-monitor devices.

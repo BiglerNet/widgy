@@ -3,7 +3,7 @@
 ## 1. Discovery and identity
 
 - [ ] 1.1 Extend monitor enumeration with device path, EDID manufacturer/product/serial and friendly name (Win32 display APIs)
-- [ ] 1.2 Add `monitorId` (and optional `fallbackToPrimary`) to `WidgyConfig`; matching order: device path, EDID triple, legacy name/index, primary if enabled
+- [ ] 1.2 Add `monitorId` (and optional `fallbackToPrimary`) to `UrDeckConfig`; matching order: device path, EDID triple, legacy name/index, primary if enabled
 - [ ] 1.3 Tie-break for identical displays using previous position and size
 - [ ] 1.4 Abstract enumeration and placement behind an interface so selection and convergence can be unit-tested
 - [ ] 1.5 Unit tests: identity matching, legacy config, re-enumeration order changes, duplicates

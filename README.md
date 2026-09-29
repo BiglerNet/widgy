@@ -1,8 +1,8 @@
-# Widgy
+# UrDeck
 
-Widgy is a lightweight widget dashboard for a secondary or case display, built as a low-overhead replacement for HYTE Nexus. It was designed around the HYTE Y70 Touch panel (1100x3840, portrait) but adapts to any monitor: the layout is a 4-column grid of square cells computed from the monitor width.
+UrDeck is a lightweight widget dashboard for a secondary or case display, built as a low-overhead replacement for HYTE Nexus. It was designed around the HYTE Y70 Touch panel (1100x3840, portrait) but adapts to any monitor: the layout is a 4-column grid of square cells computed from the monitor width.
 
-It is a .NET 10 WPF application that draws each widget with SkiaSharp. Widgets are plain C# plugin DLLs that can be added, replaced or removed while Widgy is running.
+It is a .NET 10 WPF application that draws each widget with SkiaSharp. Widgets are plain C# plugin DLLs that can be added, replaced or removed while UrDeck is running.
 
 ## Status
 
@@ -18,26 +18,26 @@ Not done yet: an editor UI, other widgets, the `[RefreshOnEvent]` event bus (suc
 ## Build, run, test
 
 ```powershell
-dotnet build widgy.slnx -c Release      # builds everything and copies the Clock plugin to plugins/
-dotnet run --project src/Widgy.Host -c Release
-dotnet test widgy.slnx -c Release       # grid, config, plugin loader and analyzer tests
+dotnet build urdeck.slnx -c Release      # builds everything and copies the Clock plugin to plugins/
+dotnet run --project src/UrDeck.Host -c Release
+dotnet test urdeck.slnx -c Release       # grid, config, plugin loader and analyzer tests
 ```
 
-The window covers the target monitor completely. Press Esc to close it. Diagnostics go to `widgy.log` next to the executable.
+The window covers the target monitor completely. Press Esc to close it. Diagnostics go to `urdeck.log` next to the executable.
 
 ### Snapshots
 
 `--snapshot` renders the active page off-screen with the same layout and widget code as the live window, writes a PNG and exits (no window is shown):
 
 ```powershell
-dotnet run --project src/Widgy.Host -c Release -- --snapshot out.png --size 1100x3840
+dotnet run --project src/UrDeck.Host -c Release -- --snapshot out.png --size 1100x3840
 ```
 
 `--size WxH` defaults to the target monitor's resolution. `*.snapshot.png` files are git-ignored.
 
 ## Configuration
 
-Config is `widgy-config.json`, located next to the executable (`src/Widgy.Host/bin/<Configuration>/net10.0-windows10.0.19041.0/`). The tracked default lives at `src/Widgy.Host/widgy-config.json`; the build copies it to the output folder when the source is newer, so edit the copy next to the executable for live tweaks and the source file for new defaults. The file is hot-reloaded about a second after saving; an invalid edit is ignored and the last good config is kept. Missing files are created with defaults.
+Config is `urdeck-config.json`, located next to the executable (`src/UrDeck.Host/bin/<Configuration>/net10.0-windows10.0.19041.0/`). The tracked default lives at `src/UrDeck.Host/urdeck-config.json`; the build copies it to the output folder when the source is newer, so edit the copy next to the executable for live tweaks and the source file for new defaults. The file is hot-reloaded about a second after saving; an invalid edit is ignored and the last good config is kept. Missing files are created with defaults.
 
 ```json
 {
@@ -46,7 +46,7 @@ Config is `widgy-config.json`, located next to the executable (`src/Widgy.Host/b
       "name": "Default",
       "widgets": [
         {
-          "typeId": "widgy.widgets.clock",
+          "typeId": "urdeck.widgets.clock",
           "col": 0,
           "row": 0,
           "width": 4,
@@ -77,19 +77,19 @@ Grid math: `ColumnWidth = screenWidth / 4` and `RowHeight = ColumnWidth`, so on 
 
 ## Writing a widget
 
-A widget is a class deriving from `Widget<TConfig>` with a few attributes; the Roslyn analyzer checks the rules at compile time and plugins hot-reload while Widgy runs. See [CONTRIBUTING.md](CONTRIBUTING.md#writing-a-widget) for a full example, the project file and the rules, and `widgets/Widgy.Widgets.Clock` for a real one.
+A widget is a class deriving from `Widget<TConfig>` with a few attributes; the Roslyn analyzer checks the rules at compile time and plugins hot-reload while UrDeck runs. See [CONTRIBUTING.md](CONTRIBUTING.md#writing-a-widget) for a full example, the project file and the rules, and `widgets/UrDeck.Widgets.Clock` for a real one.
 
 ## Project layout
 
 | Path | Purpose |
 |---|---|
-| `src/Widgy.Core` | Widget SDK (`net10.0`): attributes, `Widget<TConfig>`, `IWidget`, render context, config store, grid layout, plugin loader, `PageRenderer` |
-| `src/Widgy.Analyzer` | Roslyn analyzer (`netstandard2.0`) reporting WIDGY001-005 |
-| `src/Widgy.Host` | WPF application (`net10.0-windows10.0.19041.0`): window and monitor placement, one `SKElement` per widget |
-| `widgets/Widgy.Widgets.Clock` | Built-in Clock plugin (`widgy.widgets.clock`) |
-| `tests/Widgy.Core.Tests`, `tests/Widgy.Analyzer.Tests` | xUnit tests |
+| `src/UrDeck.Core` | Widget SDK (`net10.0`): attributes, `Widget<TConfig>`, `IWidget`, render context, config store, grid layout, plugin loader, `PageRenderer` |
+| `src/UrDeck.Analyzer` | Roslyn analyzer (`netstandard2.0`) reporting URDECK001-005 |
+| `src/UrDeck.Host` | WPF application (`net10.0-windows10.0.19041.0`): window and monitor placement, one `SKElement` per widget |
+| `widgets/UrDeck.Widgets.Clock` | Built-in Clock plugin (`urdeck.widgets.clock`) |
+| `tests/UrDeck.Core.Tests`, `tests/UrDeck.Analyzer.Tests` | xUnit tests |
 | `docs/` | `ROADMAP.md` (what to work on next), performance notes |
-| `openspec/` | Spec-driven change documents: `widgy-framework` (Phase 1), plus the proposed `theme-engine` and `display-targeting` |
+| `openspec/` | Spec-driven change documents: `urdeck-framework` (Phase 1), plus the proposed `theme-engine` and `display-targeting` |
 
 The Windows SDK suffix on the host and test target frameworks is required: `SkiaSharp.Views.WPF` only ships its .NET build for `net10.0-windows10.0.19041`.
 
