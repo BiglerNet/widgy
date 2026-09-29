@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(WidgyTfm)</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Widgy.Core and SkiaSharp are provided by the host at runtime; don't copy them next to the plugin. -->
+    <ProjectReference Include="..\..\src\Widgy.Core\Widgy.Core.csproj" Private="false" />
+    <ProjectReference Include="..\..\src\Widgy.Analyzer\Widgy.Analyzer.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <OutputItemType>Analyzer</OutputItemType>
+    </ProjectReference>
+  </ItemGroup>
+
+</Project>

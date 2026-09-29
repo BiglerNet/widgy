@@ -13,14 +13,17 @@ change under `openspec/changes/`. Work one item per session.
    it doesn't exist yet; `openspec validate --all --strict` must pass).
 2. Implement against `tasks.md`, ticking tasks only when verified.
 3. Verify:
-   - `dotnet build widgy.sln` (0 warnings) and `dotnet test widgy.sln`.
+   - `dotnet build widgy.slnx` (0 warnings) and `dotnet test widgy.slnx`. `AGENTS.md` has the full command list.
    - Rendering without a screen: `Widgy.Host.exe --snapshot out.png --size 1100x3840` (from the host's bin folder).
    - On the real panel: launch detached (the app otherwise blocks the shell), read `widgy.log` next to the exe.
      It logs monitors, actual vs. target window bounds, placed widgets, reloads and warnings.
    - Screen capture on Windows: use Windows PowerShell 5.1 (`powershell.exe`, not `pwsh`), call
      `SetProcessDpiAwarenessContext(-4)` first, then `Graphics.CopyFromScreen` of the monitor bounds.
      `PrintWindow` on the WPF window returns blank. Prefer one capture, or ask the user to look.
-4. Conventional commits (`feat(scope): ...`, `fix`, `docs`, `test`, `perf`, `refactor`, `chore`), branch off `main`.
+4. Never commit to `main`. Branch off it (`feat/...`, `fix/...`, `docs/...`, `chore/...`), push, and open a pull
+   request; PRs are squash-merged once CI is green. The PR title is a conventional commit
+   (`feat(scope): ...`, `fix`, `docs`, `test`, `perf`, `refactor`, `chore`) and the PR description becomes the body of
+   the squashed commit, so write both for the changelog reader. See "Git workflow" in item 1.
 5. Archive the OpenSpec change when all its tasks are done.
 
 Suggested model per item is noted as **Model**. Items marked Opus involve architecture decisions or hard debugging;
@@ -40,8 +43,9 @@ everything else should be fine on Sonnet.
 
 **Why:** the repo grew organically; contributors (human and agent) need a predictable layout and enforced style.
 **Model:** Sonnet.
+**Status:** done except the items marked open below (license, placeholder icon).
 
-Proposed layout (monorepo; first-party widgets live here, community widgets in their own repos):
+Layout (done; monorepo; first-party widgets live here, community widgets in their own repos):
 
 ```
 src/
@@ -57,18 +61,38 @@ openspec/
 ```
 
 Tasks:
-- Move projects; keep the host build copying first-party widgets into `plugins/`. Consider `widgy.slnx`.
-- `Directory.Build.props`: shared TFMs, `Nullable`, `ImplicitUsings`, `LangVersion`, `TreatWarningsAsErrors`,
+- [x] Move projects; the host build still copies first-party widgets into `plugins/`. Solution is now `widgy.slnx`.
+- [x] `Directory.Build.props`: shared TFMs, `Nullable`, `ImplicitUsings`, `LangVersion`, `TreatWarningsAsErrors`,
   `EnforceCodeStyleInBuild`. `Directory.Packages.props` for central package versions (SkiaSharp 3.119.4, xunit, Roslyn).
-- `.editorconfig`: file-scoped namespaces (convert existing block namespaces), `var` usage, naming (`_camelCase`
+- [x] `.editorconfig`: file-scoped namespaces (convert existing block namespaces), `var` usage, naming (`_camelCase`
   fields), brace/newline rules, CRLF handling consistent with `.gitattributes`. Run `dotnet format` once to apply.
-- Test coverage with coverlet (`dotnet test --collect:"XPlat Code Coverage"`); set a floor for Widgy.Core.
-- `AGENTS.md` (build/test/verify commands, conventions, the Windows/WPF gotchas above; `CLAUDE.md` can point to it).
-- `CONTRIBUTING.md`: move the widget-authoring section out of README; add performance budgets (item 4) and the
+- [x] Test coverage with coverlet (`dotnet test tests/Widgy.Core.Tests -p:CollectCoverage=true`); floor for Widgy.Core is 65% line (measured 70.6%).
+- [x] `AGENTS.md` (build/test/verify commands, conventions, the Windows/WPF gotchas above; `CLAUDE.md` can point to it).
+- [x] `CONTRIBUTING.md`: move the widget-authoring section out of README; add performance budgets (item 4) and the
   review checklist.
-- GitHub Actions CI on `windows-latest`: build, test, `dotnet format --verify-no-changes`, `openspec validate --all --strict`.
-- Decide with the owner: license; product name is not final, so keep the name easy to change (namespaces, exe name).
-- Placeholder app icon (task 9.1/9.2 of `widgy-framework`); final branding deferred.
+- [x] GitHub Actions CI on `windows-latest`: build, test, `dotnet format --verify-no-changes`, `openspec validate --all --strict`.
+- [ ] Decide with the owner: license; product name is not final, so keep the name easy to change (namespaces, exe name).
+- [ ] Placeholder app icon (task 9.1/9.2 of `widgy-framework`); final branding deferred.
+
+### Git workflow and GitHub maintenance
+
+**Status:** applied on 2026-09-29 (ruleset "main protection", squash-only merge settings, PR template, Dependabot, `pr-title` check). Open: `CODEOWNERS` once there is a second maintainer.
+
+All work happens on a short-lived branch and lands on `main` through a pull request. Nobody (including admins and
+agents) pushes to `main` directly. Configure on GitHub (repo settings + a ruleset on `main`), and document in
+`CONTRIBUTING.md`:
+
+- Ruleset on `main`: require a pull request (no direct pushes, no force pushes, no deletion), require the CI status
+  checks (`build`, `pr-title`) to pass with branches up to date, require linear history, require conversations
+  resolved. No bypass for admins. Zero approving reviews are required while there is a single maintainer; raise
+  `required_approving_review_count` when that changes.
+- Merge methods: squash only (disable merge commits and rebase merges), which also guarantees linear history.
+- Squash commit defaults: title = PR title, body = PR description (`squash_merge_commit_title: PR_TITLE`,
+  `squash_merge_commit_message: PR_BODY`), so the PR text is the commit text.
+- Delete head branches automatically after merge; enable "always suggest updating pull request branches".
+- Pull request template (summary, linked OpenSpec change, verification done, perf impact) and a conventional-commit
+  PR title check in CI.
+- Optional: Dependabot for NuGet and GitHub Actions; `CODEOWNERS` once there is more than one maintainer.
 
 ## 2. Roadmap document
 

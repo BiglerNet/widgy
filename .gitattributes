@@ -1,3 +1,4 @@
-* text=auto
+# LF in the repo and in every working tree, so `dotnet format` and CI agree with local checkouts.
+* text=auto eol=lf
 *.png binary
 *.ico binary
