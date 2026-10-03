@@ -112,7 +112,7 @@ Status legend: `[x]` done and verified against the code; `[ ]` open. Task wordin
 
 ## 9. Final Polish
 
-- [ ] 9.1 Add application icon (.ico)
+- [x] 9.1 Add application icon (.ico): placeholder `src/UrDeck.Host/Resources/urdeck.ico`, set as `ApplicationIcon` (verified: extracted from the built exe)
 - [x] 9.3 Remove debug output: Console/debug writes replaced by `UrDeckLog` file logging (no `Console.Write` calls remain)
 - [x] 9.4 Test with actual display hardware — done on the HYTE Y70 Touch 1100×3840 panel
 - [x] 9.5 Verify `urdeck.sln` builds in Release mode (`dotnet build urdeck.sln -c Release`: succeeded, 0 warnings, 0 errors)
@@ -126,8 +126,8 @@ Status legend: `[x]` done and verified against the code; `[ ]` open. Task wordin
 
 - [x] 10.4 Unloaded plugin contexts are collected in the live WPF host (fixed WPF `SafeSecurityHelper` cache pinning and System.Text.Json caching; verified ~1.9s after unload)
 - [x] 10.6 Small cleanups: layout clamp warning goes through `UrDeckLog`; unused `GridLayoutManager.MonitorChanged` event removed
-- [ ] 10.9 Skip redundant redraws: `IWidget.NeedsRender(DateTime now)` (default `true`, virtual on `Widget<TConfig>`); the host repaints only when it returns `true`; the Clock repaints once a minute
-- [ ] 10.10 Close-out: placeholder icon builds into the exe (9.1), specs synced into `openspec/specs`, roadmap "Current state" updated, change archived
+- [x] 10.9 Skip redundant redraws: `IWidget.NeedsRender(DateTime now)` (default `true`, virtual on `Widget<TConfig>`); the host repaints only when it returns `true`; the Clock repaints once a minute
+- [x] 10.10 Close-out: placeholder icon builds into the exe (9.1), specs synced into `openspec/specs`, roadmap "Current state" updated, change archived
 
 ## 11. Moved out of this change
 

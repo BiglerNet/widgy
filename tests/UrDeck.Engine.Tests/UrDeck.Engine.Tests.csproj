@@ -19,6 +19,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\UrDeck.Engine\UrDeck.Engine.csproj" />
+    <!-- The first-party Clock doubles as a sample widget for rendering tests. -->
+    <ProjectReference Include="..\..\widgets\UrDeck.Widgets.Clock\UrDeck.Widgets.Clock.csproj" />
   </ItemGroup>
 
 </Project>

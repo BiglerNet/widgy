@@ -41,5 +41,8 @@ public abstract class Widget<TConfig> : IWidget<TConfig> where TConfig : WidgetC
 
     public virtual Task UpdateAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
+    /// <inheritdoc cref="IWidget.NeedsRender"/>
+    public virtual bool NeedsRender(DateTime now) => true;
+
     public abstract void Render(WidgetRenderContext context);
 }

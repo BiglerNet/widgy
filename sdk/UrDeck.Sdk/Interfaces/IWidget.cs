@@ -26,6 +26,13 @@ public interface IWidget
     Task UpdateAsync(CancellationToken cancellationToken);
 
     /// <summary>
+    /// Whether anything visible changed since the last paint. The host asks after each refresh (on the UI
+    /// thread) and skips the repaint when this returns <c>false</c>; it always paints a widget when it is first
+    /// placed. The default repaints on every refresh. Must be cheap.
+    /// </summary>
+    bool NeedsRender(DateTime now) => true;
+
+    /// <summary>
     /// Draws the widget. Called on the UI thread; must be synchronous and fast. The canvas is only
     /// valid for the duration of the call.
     /// </summary>

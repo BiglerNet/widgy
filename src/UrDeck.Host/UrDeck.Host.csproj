@@ -4,6 +4,7 @@
         <TargetFramework>$(UrDeckWindowsTfm)</TargetFramework>
         <UseWPF>true</UseWPF>
         <ApplicationManifest>app.manifest</ApplicationManifest>
+        <ApplicationIcon>Resources/urdeck.ico</ApplicationIcon>
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="SkiaSharp" />
