@@ -3,10 +3,7 @@
 
 using System.Globalization;
 using SkiaSharp;
-using UrDeck.Core;
-using UrDeck.Core.Attributes;
-using UrDeck.Core.Enums;
-using UrDeck.Core.Rendering;
+using UrDeck.Sdk;
 using UrDeck.Widgets.Clock.Config;
 
 namespace UrDeck.Widgets.Clock;

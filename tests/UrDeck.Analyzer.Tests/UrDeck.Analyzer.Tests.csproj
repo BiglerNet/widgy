@@ -8,8 +8,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\UrDeck.Core\UrDeck.Core.csproj" />
-    <ProjectReference Include="..\..\src\UrDeck.Analyzer\UrDeck.Analyzer.csproj" />
+    <ProjectReference Include="..\..\sdk\UrDeck.Sdk\UrDeck.Sdk.csproj" />
+    <ProjectReference Include="..\..\sdk\UrDeck.Analyzer\UrDeck.Analyzer.csproj" />
   </ItemGroup>
 
 </Project>

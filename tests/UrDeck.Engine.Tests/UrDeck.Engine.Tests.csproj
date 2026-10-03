@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Condition="'$(CollectCoverage)' == 'true'">
+    <Include>[UrDeck.Engine]*</Include>
+    <Threshold>65</Threshold>
+    <ThresholdType>line</ThresholdType>
+    <CoverletOutputFormat>cobertura</CoverletOutputFormat>
+    <CoverletOutput>$(MSBuildThisFileDirectory)../../artifacts/coverage/</CoverletOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <!-- Line-coverage floor for UrDeck.Engine. Run: dotnet test tests/UrDeck.Engine.Tests -p:CollectCoverage=true -->
+    <PackageReference Include="coverlet.msbuild" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\UrDeck.Engine\UrDeck.Engine.csproj" />
+  </ItemGroup>
+
+</Project>

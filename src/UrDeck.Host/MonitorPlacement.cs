@@ -4,7 +4,7 @@
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
-using UrDeck.Core.Config;
+using UrDeck.Engine.Config;
 
 namespace UrDeck.Host;
 

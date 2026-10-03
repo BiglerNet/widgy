@@ -83,11 +83,12 @@ A widget is a class deriving from `Widget<TConfig>` with a few attributes; the R
 
 | Path | Purpose |
 |---|---|
-| `src/UrDeck.Core` | Widget SDK (`net10.0`): attributes, `Widget<TConfig>`, `IWidget`, render context, config store, grid layout, plugin loader, `PageRenderer` |
-| `src/UrDeck.Analyzer` | Roslyn analyzer (`netstandard2.0`) reporting URDECK001-005 |
+| `sdk/UrDeck.Sdk` | Widget SDK (`net10.0`, MIT): attributes, `Widget<TConfig>`, `IWidget`, `WidgetConfig`, render context, `ThemeColors` |
+| `sdk/UrDeck.Analyzer` | Roslyn analyzer (`netstandard2.0`, MIT) reporting URDECK001-005 |
+| `src/UrDeck.Engine` | Plugin loader, config store, grid layout, `PageRenderer` |
 | `src/UrDeck.Host` | WPF application (`net10.0-windows10.0.19041.0`): window and monitor placement, one `SKElement` per widget |
 | `widgets/UrDeck.Widgets.Clock` | Built-in Clock plugin (`urdeck.widgets.clock`) |
-| `tests/UrDeck.Core.Tests`, `tests/UrDeck.Analyzer.Tests` | xUnit tests |
+| `tests/UrDeck.Engine.Tests`, `tests/UrDeck.Analyzer.Tests` | xUnit tests |
 | `docs/` | `ROADMAP.md` (what to work on next), performance notes |
 | `openspec/` | Spec-driven change documents: `urdeck-framework` (Phase 1), plus the proposed `theme-engine` and `display-targeting` |
 
@@ -97,11 +98,11 @@ The Windows SDK suffix on the host and test target frameworks is required: `Skia
 
 | Path | License |
 |---|---|
-| `src/UrDeck.Host`, `src/UrDeck.Core`, `widgets/`, `tests/` | [GPL-3.0-or-later](LICENSE) with the [plugin exception](PLUGIN-EXCEPTION.md) |
-| `src/UrDeck.Analyzer` | [MIT](src/UrDeck.Analyzer/LICENSE) |
+| `src/UrDeck.Host`, `src/UrDeck.Engine`, `widgets/`, `tests/` | [GPL-3.0-or-later](LICENSE) with the [plugin exception](PLUGIN-EXCEPTION.md) |
+| `sdk/` (`UrDeck.Sdk`, `UrDeck.Analyzer`) | [MIT](sdk/LICENSE) |
 | Community widgets | The author's choice |
 
-Widgets that talk to UrDeck only through the SDK API may use any license, including proprietary ones; that is what the plugin exception grants. `UrDeck.Core` still mixes the widget SDK and the engine, so it is GPL for now. The SDK part moves to its own MIT-licensed assembly (`UrDeck.Sdk`) in an upcoming change, and the engine stays GPL. Code samples in the docs are MIT.
+Widgets that talk to UrDeck only through the SDK API may use any license, including proprietary ones; that is what the plugin exception grants. The license boundary is an assembly boundary: widgets reference only `UrDeck.Sdk` (MIT), never the GPL engine or host. Code samples in the docs are MIT.
 
 ## Contributing
 

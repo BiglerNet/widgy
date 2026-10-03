@@ -26,7 +26,7 @@ As more widgets arrive (gauges, charts, weather, media), every author would rein
 
 ## Impact
 
-- **Code**: `UrDeck.Core` (theme model, loader, primitives, `WidgetRenderContext`), `UrDeck.Host` (theme selection/hot-reload, passing the theme to views), `UrDeck.Widgets.Clock` (drop local card/fonts).
+- **Code**: `UrDeck.Sdk` (theme types, `WidgetRenderContext`) and `UrDeck.Engine` (theme loader, primitives), `UrDeck.Host` (theme selection/hot-reload, passing the theme to views), `UrDeck.Widgets.Clock` (drop local card/fonts).
 - **Config**: `theme` config key becomes functional; optional `themes/` folder for user theme files.
 - **Compatibility**: Third-party widgets built against the current `WidgetRenderContext` continue to work; new members are additive.
 - **Performance**: Typefaces and paints are cached per theme; theme changes trigger one repaint of all widgets, and idle CPU must remain near zero.

@@ -7,11 +7,11 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Win32;
-using UrDeck.Core.Config;
-using UrDeck.Core.Diagnostics;
-using UrDeck.Core.Layout;
-using UrDeck.Core.Plugin;
-using UrDeck.Core.Rendering;
+using UrDeck.Engine.Config;
+using UrDeck.Engine.Diagnostics;
+using UrDeck.Engine.Layout;
+using UrDeck.Engine.Plugin;
+using UrDeck.Sdk;
 
 namespace UrDeck.Host;
 

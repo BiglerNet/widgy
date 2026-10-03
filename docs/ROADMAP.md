@@ -48,13 +48,15 @@ everything else should be fine on Sonnet.
 Layout (done; monorepo; first-party widgets live here, community widgets in their own repos):
 
 ```
-src/
-  UrDeck.Core/            # SDK (becomes the UrDeck.Sdk NuGet package later)
+sdk/                     # MIT: the plugin contract
+  UrDeck.Sdk/            # attributes, Widget<T>, render context (becomes the UrDeck.Sdk NuGet package later)
   UrDeck.Analyzer/
+src/                     # GPL
+  UrDeck.Engine/         # plugin loader, config store, grid layout, page renderer
   UrDeck.Host/
 widgets/                 # first-party widget plugins (UrDeck.Widgets.Clock, ...)
 tests/
-  UrDeck.Core.Tests/
+  UrDeck.Engine.Tests/
   UrDeck.Analyzer.Tests/
 docs/                    # ROADMAP.md, perf/, architecture notes
 openspec/
@@ -66,7 +68,7 @@ Tasks:
   `EnforceCodeStyleInBuild`. `Directory.Packages.props` for central package versions (SkiaSharp 3.119.4, xunit, Roslyn).
 - [x] `.editorconfig`: file-scoped namespaces (convert existing block namespaces), `var` usage, naming (`_camelCase`
   fields), brace/newline rules, CRLF handling consistent with `.gitattributes`. Run `dotnet format` once to apply.
-- [x] Test coverage with coverlet (`dotnet test tests/UrDeck.Core.Tests -p:CollectCoverage=true`); floor for UrDeck.Core is 65% line (measured 70.6%).
+- [x] Test coverage with coverlet (`dotnet test tests/UrDeck.Engine.Tests -p:CollectCoverage=true`); floor for UrDeck.Engine is 65% line (measured 76.7%).
 - [x] `AGENTS.md` (build/test/verify commands, conventions, the Windows/WPF gotchas above; `CLAUDE.md` can point to it).
 - [x] `CONTRIBUTING.md`: move the widget-authoring section out of README; add performance budgets (item 4) and the
   review checklist.
@@ -100,19 +102,47 @@ agents) pushes to `main` directly. Configure on GitHub (repo settings + a rulese
   log (`urdeck.log`), widget type ids (`urdeck.widgets.clock`), analyzer ids (`URDECK001-005`), env vars.
 - [x] **GitHub:** the repo lives in the `UrDeck` org as `UrDeck/urdeck` (moved 2026-09-29; the old URL redirects).
 - [ ] Reserve the `UrDeck.` NuGet prefix; register `urdeck.app` / `urdeck.dev` (owner task).
-- [x] **Licenses** (done: root `LICENSE`, `PLUGIN-EXCEPTION.md`, per-directory `LICENSE` for the MIT analyzer, SPDX headers
-  enforced by `.editorconfig`, `PackageLicenseExpression` in the build props, README license map). Interim state:
-  `UrDeck.Core` is GPL until the SDK/Engine split below, so only the analyzer is MIT today. The plan:
+- [x] **Licenses** (done: root `LICENSE`, `PLUGIN-EXCEPTION.md`, `LICENSE` for the MIT `sdk/` tree, SPDX headers
+  enforced by `.editorconfig`, `PackageLicenseExpression` in the build props, README license map). The plan:
   - Host, engine and official widgets: **GPL-3.0-or-later** with a GPLv3 section 7 **plugin exception**: widgets that use only
     the public SDK API may be under any license.
   - SDK and analyzer (`UrDeck.Sdk`): **MIT**. Templates and example widgets: MIT (so copying them does not make a
     community widget GPL). Fonts, icons, themes and logo: licensed separately.
   - Community widgets: the author chooses. Contributions are inbound=outbound (no DCO/CLA before 1.0 or the first
     outside contribution; revisit if dual licensing is ever wanted).
-- [ ] **SDK/Engine split** (before the theme engine, item 5): the license boundary must be an assembly boundary. Split
-  `UrDeck.Core` into `UrDeck.Sdk` (MIT: attributes, `Widget<T>`, render context, theme types, analyzer bundled) and
-  `UrDeck.Engine` (GPL: plugin loader, config store, grid layout, `PageRenderer`). Widgets reference only the SDK.
-  The SDK is not widget-only: data providers, display backends and theme packs will use it too.
+- [x] **SDK/Engine split** (done): the license boundary is an assembly boundary. `UrDeck.Core` became `sdk/UrDeck.Sdk` (MIT:
+  attributes, `Widget<T>`, `WidgetConfig`, render context, `ThemeColors`) and `src/UrDeck.Engine` (GPL: plugin loader, config
+  store, grid layout, `PageRenderer`, logging). The analyzer moved to `sdk/`. Widgets reference only the SDK. The SDK is not
+  widget-only: data providers, display backends and theme packs will use it too. Done on purpose in the small: the
+  `UrDeck.Sdk` `AssemblyVersion` is frozen at 0.1.0.0 (guarded by `SdkContractTests`) and the loader warns when a plugin has
+  no widgets or carries a different SDK copy.
+
+#### Parked: do before publishing the SDK, accepting external widgets or opening the marketplace
+
+Deliberately not done yet (one author, one SDK version, no outside widgets). The full analysis by an Opus design review
+is in [docs/design/sdk-engine-split-full-design.md](design/sdk-engine-split-full-design.md) with a three-PR migration plan
+in [docs/design/sdk-engine-split-full-tasks.md](design/sdk-engine-split-full-tasks.md). Items to pick up:
+
+- [ ] **Loader hardening:** reject (with a clear log line) plugins that reference `UrDeck.Engine`/`UrDeck.Host`, were built
+  against a newer SDK, or against an incompatible SkiaSharp major/minor; treat only DLLs that reference the SDK as plugins
+  (stray `SkiaSharp.dll` or native libs in `plugins/` currently load as plugins and just log "no widgets").
+- [ ] **SDK versioning:** SemVer; a `MinimumCompatibleVersion` the loader enforces; the version a plugin was compiled against is
+  the authoritative target (a marketplace manifest only mirrors it). Today only `AssemblyVersion` is frozen.
+- [ ] **Public API tracking:** `Microsoft.CodeAnalysis.PublicApiAnalyzers` on the SDK (`PublicAPI.Shipped/Unshipped.txt`) and NuGet
+  package validation after the first release.
+- [ ] **SkiaSharp policy:** the SDK exposes SkiaSharp types, so declare a version range (the design suggests `[4.153.0, 5.0.0)`)
+  and make Dependabot ignore SkiaSharp majors; they are SDK-breaking changes. (Dependabot already moved 3.x to 4.x.)
+- [ ] **Packaging:** bundle the analyzer in the `UrDeck.Sdk` NuGet package; a `dotnet new` widget template.
+- [ ] **Build guard:** fail the build if anything under `sdk/` references `src/`.
+- [ ] **Services and logging for widgets:** widgets log nothing today. When the first one needs to (weather), use
+  `Microsoft.Extensions.Logging.Abstractions`: the SDK exposes `ILogger` (for example a protected `Logger` on `Widget<T>`) and the
+  engine supplies an `ILoggerFactory` that writes to `urdeck.log`. No custom logging interface. A general host-services hook
+  (the design suggests `IWidget.Attach(IWidgetHost)`) can come with it.
+- [ ] **SDK tests:** the SDK is only covered indirectly through the engine tests; add `UrDeck.Sdk` tests and a floor (the design
+  suggests 80%).
+- [ ] **Plugin exception wording:** optionally name theme/data packages, non-widget plugin kinds and the SkiaSharp types the SDK
+  exposes once those plugin kinds exist.
+
 - **Repo strategy:** monorepo through 1.0 (atomic SDK/engine/host/widget changes while the API churns). Later, split along
   the existing seams: `urdeck/widget-template` (MIT template repo, worth doing soon) and a git-based marketplace
   registry repo (see item 13). Split the SDK out only once it is stable.
@@ -126,7 +156,7 @@ This file. Keep "Current state" and item status up to date at the end of each se
 **Why:** the SDK promises three refresh strategies; only `[RefreshOnTick]` fully works.
 **Model:** Sonnet (Opus if the event-bus design gets contentious).
 
-- `[RefreshOnEvent("name")]` (task 10.1): an in-process event bus in UrDeck.Core. Publishers (future data providers
+- `[RefreshOnEvent("name")]` (task 10.1): an in-process event bus (the publish/subscribe contract in UrDeck.Sdk, the implementation in UrDeck.Engine). Publishers (future data providers
   like a sensor service) publish by name; the host marshals to the UI thread and invalidates subscribed widgets.
   Subscriptions must be dropped on plugin reload. Today such widgets render once.
 - `[RefreshAdaptive(minMs, maxMs)]` (task 10.2): scale the interval between min and max based on system load

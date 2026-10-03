@@ -16,11 +16,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using SkiaSharp;
-using UrDeck.Core;
-using UrDeck.Core.Attributes;
-using UrDeck.Core.Config;
-using UrDeck.Core.Enums;
-using UrDeck.Core.Rendering;
+using UrDeck.Sdk;
 public class Cfg : WidgetConfig { }
 ";
 
@@ -42,7 +38,7 @@ public class Cfg : WidgetConfig { }
         string tpa = (string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!;
         foreach (string p in tpa.Split(Path.PathSeparator))
             refs.Add(MetadataReference.CreateFromFile(p));
-        refs.Add(MetadataReference.CreateFromFile(typeof(UrDeck.Core.Attributes.WidgetAttribute).Assembly.Location));
+        refs.Add(MetadataReference.CreateFromFile(typeof(UrDeck.Sdk.WidgetAttribute).Assembly.Location));
         refs.Add(MetadataReference.CreateFromFile(typeof(SkiaSharp.SKCanvas).Assembly.Location));
 
         var compilation = CSharpCompilation.Create("t", new[] { tree }, refs,

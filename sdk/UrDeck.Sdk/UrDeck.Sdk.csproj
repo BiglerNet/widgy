@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(UrDeckTfm)</TargetFramework>
+    <Description>Widget SDK for UrDeck: attributes, Widget base class and the render context.</Description>
+
+    <!-- Plugins are compiled against this assembly and loaded into the host's copy of it. .NET refuses to bind a
+         reference to a lower assembly version, which would make the plugin load a second SDK copy and silently
+         break type identity. Keep AssemblyVersion fixed until a deliberate breaking change; Version can move freely. -->
+    <Version>0.1.0</Version>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" />
+  </ItemGroup>
+
+</Project>

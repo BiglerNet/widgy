@@ -5,10 +5,10 @@ using System.Windows.Threading;
 using SkiaSharp;
 using SkiaSharp.Views.Desktop;
 using SkiaSharp.Views.WPF;
-using UrDeck.Core.Diagnostics;
-using UrDeck.Core.Interfaces;
-using UrDeck.Core.Plugin;
-using UrDeck.Core.Rendering;
+using UrDeck.Engine.Diagnostics;
+using UrDeck.Engine.Plugin;
+using UrDeck.Engine.Rendering;
+using UrDeck.Sdk;
 
 namespace UrDeck.Host;
 
