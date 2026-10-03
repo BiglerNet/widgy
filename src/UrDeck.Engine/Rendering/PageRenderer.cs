@@ -3,13 +3,14 @@
 
 using SkiaSharp;
 using UrDeck.Engine.Layout;
+using UrDeck.Engine.Themes;
 using UrDeck.Sdk;
 
 namespace UrDeck.Engine.Rendering;
 
 /// <summary>
 /// Renders a whole page of widgets onto a single canvas. The live host draws each widget into its own
-/// element instead; this path is for snapshots and tests, and uses the same layout and widget code.
+/// element instead; this path is for snapshots and tests, and uses the same layout, card and widget code.
 /// </summary>
 public static class PageRenderer
 {
@@ -18,12 +19,14 @@ public static class PageRenderer
         int widthPx,
         int heightPx,
         IReadOnlyList<(WidgetConfig Config, IWidget Widget)> widgets,
-        ThemeColors theme,
+        LoadedTheme loaded,
         DateTime time)
     {
-        canvas.Clear(theme.BackgroundColor);
+        // Pixels are physical here, so the theme resolves against this canvas's own cell size.
+        using var theme = ThemeResolver.Resolve(loaded, widthPx / 4f);
+        canvas.Clear(theme.Background);
 
-        var layout = new GridLayoutManager(widthPx, heightPx)
+        var layout = new GridLayoutManager(widthPx, heightPx, loaded.Definition.Card!.Gap!.Value)
             .RenderWidgetLayout(widgets.Select(w => w.Config).ToList(), new System.Drawing.Size(widthPx, heightPx));
 
         for (int i = 0; i < widgets.Count; i++)
@@ -35,11 +38,7 @@ public static class PageRenderer
             var item = layout[i];
             int save = canvas.Save();
             canvas.Translate(item.Position.X, item.Position.Y);
-            canvas.ClipRect(SKRect.Create(item.Size.Width, item.Size.Height));
-
-            var ctx = new WidgetRenderContext(canvas, time, item.Size, theme, widget.Config, CancellationToken.None);
-            WidgetPainter.RenderSafely(widget, ctx);
-
+            WidgetPainter.Paint(widget, canvas, item.Size, theme, time, CancellationToken.None);
             canvas.RestoreToCount(save);
         }
     }
@@ -48,12 +47,12 @@ public static class PageRenderer
         int widthPx,
         int heightPx,
         IReadOnlyList<(WidgetConfig Config, IWidget Widget)> widgets,
-        ThemeColors theme,
+        LoadedTheme loaded,
         DateTime time)
     {
         var bitmap = new SKBitmap(widthPx, heightPx);
         using var canvas = new SKCanvas(bitmap);
-        Render(canvas, widthPx, heightPx, widgets, theme, time);
+        Render(canvas, widthPx, heightPx, widgets, loaded, time);
         return bitmap;
     }
 }

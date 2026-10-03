@@ -35,8 +35,9 @@ everything else should be fine on Sonnet.
   (collectible AssemblyLoadContext), grid layout, WPF host with per-monitor DPI placement, Clock widget, tests, placeholder
   icon and render skipping (`NeedsRender`).
 - Repo structure, licensing, the rename and the SDK/Engine split are done (item 1). The repo is `UrDeck/urdeck`.
-- Proposed, not started: `theme-and-card` (item 5, explored and proposed on 2026-10-03, ready for `/opsx:apply`),
-  `display-targeting` (older draft, to be reworked with `/opsx:explore` then `/opsx:propose`), and `data-providers`
+- `theme-and-card` (item 5) is implemented (themes as data, host-drawn card, gap in the layout, readout and text
+  line components, Clock migrated); see item 5.
+- Proposed, not started: `display-targeting` (older draft, to be reworked with `/opsx:explore` then `/opsx:propose`), and `data-providers`
   (item 3, not written yet).
 - Memory: baseline decided. Keep the WPF host; ~66 MB private (60-70 MB) / ~115 MB working set (Release, one Clock,
   software WPF composition). Idle CPU negligible. See `docs/perf/memory-investigation.md`.
@@ -202,6 +203,8 @@ Design direction, to be validated with `/opsx:explore` then `/opsx:propose` and 
 
 ## 5. Theme and card (`openspec/changes/theme-and-card`)
 
+**Status:** done (SDK 0.2.0.0; paint cost in `docs/perf/theme-card-paint.md`, format in `docs/themes.md`).
+
 Themes as data (colours, card shape, typography, stroke; a folder with optional bundled fonts), a host-drawn card
 behind every widget, the gap in the grid layout, and the first shared components (readout, text line), with the Clock
 migrated onto them. Do this before building more widgets so they don't each invent styling.
@@ -211,7 +214,7 @@ The design was settled in an exploration on 2026-10-03; decisions and rejected a
 `design.md`. The earlier `theme-engine` draft is kept for reference as `docs/design/theme-engine-draft-*.md`, and the
 handoff that started the exploration is [docs/handoff/2026-10-03-theme-and-components.md](handoff/2026-10-03-theme-and-components.md).
 
-Follow-ups, each its own change, each component landing with its first widget:
+Follow-ups (see `design.md` of the theme-and-card change for the constraints they build on), each its own change, each component landing with its first widget:
 
 - Animation: a way for a widget to request frames, with continuous looping as the design target (animated weather
   icons, visualizers, transitions). Includes measuring software versus GPU-backed elements (`SKGLElement`) on the panel.

@@ -145,7 +145,7 @@ public class TestWidget : Widget<TestCfg>
         var config = new WidgetConfig { WidgetTypeId = "test.widget", Width = 1, Height = 1 };
         var widget = _loader.CreateWidget(config)!;
         using var bitmap = UrDeck.Engine.Rendering.PageRenderer.RenderToBitmap(
-            100, 100, new[] { (config, widget) }, UrDeck.Sdk.ThemeColors.DefaultDark, DateTime.Now);
+            100, 100, new[] { (config, widget) }, new UrDeck.Engine.Themes.ThemeStore("").Load(UrDeck.Engine.Themes.ThemeStore.DefaultName), DateTime.Now);
         return new WeakReference(AssemblyLoadContext.GetLoadContext(widget.GetType().Assembly));
     }
 

@@ -14,7 +14,7 @@ public class SdkContractTests
         // Plugins bind to the host's UrDeck.Sdk by assembly version; a bump makes already-built plugins load a second
         // SDK copy and silently fail. Only change this together with a deliberate, announced breaking SDK change.
         var version = typeof(Widget<>).Assembly.GetName().Version;
-        Assert.Equal(new Version(0, 1, 0, 0), version);
+        Assert.Equal(new Version(0, 2, 0, 0), version);
     }
 
     [Fact]

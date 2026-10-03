@@ -8,7 +8,12 @@ namespace UrDeck.Engine.Layout;
 public class WidgetLayoutItem
 {
     public string WidgetTypeId { get; set; } = "";
+    /// <summary>Top-left of the widget's card (its surface): the cell inset by half the gap.</summary>
     public System.Drawing.Point Position { get; set; }
+    /// <summary>Size of the widget's card (its surface).</summary>
     public Size Size { get; set; }
+    /// <summary>Top-left of the block of grid cells the widget spans.</summary>
+    public System.Drawing.Point CellPosition { get; set; }
+    public Size CellSize { get; set; }
     public Size GridSize { get; set; }
 }

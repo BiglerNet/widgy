@@ -7,10 +7,12 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Win32;
+using SkiaSharp;
 using UrDeck.Engine.Config;
 using UrDeck.Engine.Diagnostics;
 using UrDeck.Engine.Layout;
 using UrDeck.Engine.Plugin;
+using UrDeck.Engine.Themes;
 using UrDeck.Sdk;
 
 namespace UrDeck.Host;
@@ -19,25 +21,32 @@ public sealed class MainWindow : Window
 {
     private readonly ConfigStore _configStore;
     private readonly WidgetPluginLoader _plugins;
-    private readonly ThemeColors _theme = ThemeColors.DefaultDark;
+    private readonly ThemeStore _themes;
     private readonly Canvas _surface = new();
     private readonly List<WidgetView> _views = new();
     private readonly List<DispatcherTimer> _pendingRetargets = new();
     private MonitorInfo _target;
     private bool _rebuildPending;
-    private System.Drawing.Size _lastLayoutSize;
+    private LoadedTheme _loadedTheme;
+    private Theme? _theme;
+    private LayoutKey _lastLayout;
 
-    internal MainWindow(ConfigStore configStore, WidgetPluginLoader plugins, MonitorInfo target)
+    /// <summary>What a built page depends on: the window size, the display scaling and the active theme.</summary>
+    private readonly record struct LayoutKey(System.Drawing.Size Screen, double DpiScale, LoadedTheme? Theme);
+
+    internal MainWindow(ConfigStore configStore, WidgetPluginLoader plugins, ThemeStore themes, MonitorInfo target)
     {
         _configStore = configStore;
         _plugins = plugins;
+        _themes = themes;
         _target = target;
+        _loadedTheme = LoadTheme();
 
         Title = "UrDeck";
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.Manual;
-        Background = new SolidColorBrush(Color.FromRgb(_theme.BackgroundColor.Red, _theme.BackgroundColor.Green, _theme.BackgroundColor.Blue));
+        ApplyBackground();
         Content = _surface;
 
         SourceInitialized += (_, _) => MonitorPlacement.Cover(this, _target.Bounds);
@@ -53,6 +62,9 @@ public sealed class MainWindow : Window
 
         _configStore.ConfigChanged += _ => Dispatcher.BeginInvoke(() =>
         {
+            // Themes are re-read on every config reload, so editing a theme and saving the config applies it.
+            _loadedTheme = LoadTheme();
+            ApplyBackground();
             Retarget("config changed");
             ScheduleRebuild(force: true);
         });
@@ -69,6 +81,19 @@ public sealed class MainWindow : Window
         // re-evaluate the target a few times after each change instead of trusting the first event.
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
         SystemEvents.PowerModeChanged += OnPowerModeChanged;
+    }
+
+    private LoadedTheme LoadTheme()
+    {
+        var loaded = _themes.Load(_configStore.Config.Theme);
+        UrDeckLog.Info($"Theme '{loaded.Name}' selected");
+        return loaded;
+    }
+
+    private void ApplyBackground()
+    {
+        var c = SKColor.Parse(_loadedTheme.Definition.Colors!.Background);
+        Background = new SolidColorBrush(Color.FromRgb(c.Red, c.Green, c.Blue));
     }
 
     private void OnDisplaySettingsChanged(object? sender, EventArgs e) =>
@@ -135,7 +160,7 @@ public sealed class MainWindow : Window
     private void ScheduleRebuild(bool force = false)
     {
         if (force)
-            _lastLayoutSize = default;
+            _lastLayout = default;
         if (_rebuildPending)
             return;
         _rebuildPending = true;
@@ -149,18 +174,26 @@ public sealed class MainWindow : Window
     private void RebuildLayout()
     {
         var screen = new System.Drawing.Size((int)ActualWidth, (int)ActualHeight);
-        if (screen == _lastLayoutSize)
+        double dpiScale = VisualTreeHelper.GetDpi(this).DpiScaleX;
+        var key = new LayoutKey(screen, dpiScale, _loadedTheme);
+        if (key == _lastLayout)
             return;
-        _lastLayoutSize = screen;
+        _lastLayout = key;
 
+        // Views first, so nothing still paints with the old theme's typefaces when they are released.
         DisposeViews();
+        _theme?.Dispose();
+        _theme = null;
 
         var page = _configStore.Config.CurrentPage;
         if (page == null || screen.Width < 16 || screen.Height < 16)
             return;
 
-        // Layout is computed in DIPs; each SKElement then renders at the monitor's physical resolution.
-        var layout = new GridLayoutManager(screen.Width, screen.Height).RenderWidgetLayout(page.Widgets, screen);
+        // Layout is computed in DIPs; each SKElement then renders at the monitor's physical resolution, so the theme
+        // is resolved against the physical size of one grid cell.
+        _theme = ThemeResolver.Resolve(_loadedTheme, (float)(screen.Width * dpiScale / 4));
+        var layout = new GridLayoutManager(screen.Width, screen.Height, _loadedTheme.Definition.Card!.Gap!.Value)
+            .RenderWidgetLayout(page.Widgets, screen);
 
         for (int i = 0; i < page.Widgets.Count; i++)
         {
@@ -222,6 +255,7 @@ public sealed class MainWindow : Window
         foreach (var t in _pendingRetargets)
             t.Stop();
         DisposeViews();
+        _theme?.Dispose();
         base.OnClosed(e);
     }
 }
