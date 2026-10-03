@@ -29,7 +29,7 @@ The goal: the user picks a screen from a list, never needs to know its resolutio
 
 ## Impact
 
-- **Code**: `UrDeck.Host` (`MonitorPlacement`, `MainWindow`, new picker/identify UI), `UrDeck.Core` (`UrDeckConfig`: stable monitor identity fields, migration).
+- **Code**: `UrDeck.Host` (`MonitorPlacement`, `MainWindow`, new picker/identify UI), `UrDeck.Engine` (`UrDeckConfig`: stable monitor identity fields, migration).
 - **Config**: new stable identity field(s) alongside `monitorName`/`monitor`; legacy values still honored.
 - **Dependencies**: uses Win32 display APIs (display config / EDID) via P/Invoke; no new NuGet dependencies expected.
 - **Memory/CPU**: the picker is on-demand; idle behavior unchanged. A configuration surface adds WPF UI, so its cost must be measured against the memory goal.

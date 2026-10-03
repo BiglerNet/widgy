@@ -3,7 +3,7 @@
 
 using System.Reflection;
 using System.Runtime.Loader;
-using UrDeck.Core.Diagnostics;
+using UrDeck.Engine.Diagnostics;
 
 namespace UrDeck.Host;
 

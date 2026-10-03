@@ -17,7 +17,7 @@ Read `README.md` for what it is, `docs/ROADMAP.md` for what to work on, and `CON
 ```powershell
 dotnet build urdeck.slnx -c Release                     # 0 warnings required; warnings are errors
 dotnet test urdeck.slnx -c Release
-dotnet test tests/UrDeck.Core.Tests -c Release -p:CollectCoverage=true   # enforces the UrDeck.Core line-coverage floor
+dotnet test tests/UrDeck.Engine.Tests -c Release -p:CollectCoverage=true   # enforces the UrDeck.Engine line-coverage floor
 dotnet format urdeck.slnx --severity warn               # apply style; CI runs it with --verify-no-changes
 openspec validate --all --strict
 ```
@@ -30,19 +30,21 @@ CI (`.github/workflows/ci.yml`) runs all of the above on `windows-latest`; run t
 ## Layout
 
 ```
-src/UrDeck.Core       SDK: attributes, Widget<T>, render context, config, grid, plugin loader, PageRenderer
-src/UrDeck.Analyzer   Roslyn analyzer (URDECK001-005), netstandard2.0
-src/UrDeck.Host       WPF app: window/monitor placement, one SKElement per widget
-widgets/             first-party widget plugins (UrDeck.Widgets.Clock, ...); copied to plugins/ by the host build
-tests/               xUnit projects
-docs/                ROADMAP.md, perf/, architecture notes
-openspec/            spec-driven change documents
+sdk/UrDeck.Sdk       MIT. The plugin contract: attributes, Widget<T>, WidgetConfig, render context, ThemeColors
+sdk/UrDeck.Analyzer  MIT. Roslyn analyzer (URDECK001-005), netstandard2.0
+src/UrDeck.Engine     GPL. Plugin loader, config store, grid layout, PageRenderer, logging
+src/UrDeck.Host       GPL. WPF app: window/monitor placement, one SKElement per widget
+widgets/              first-party widget plugins (UrDeck.Widgets.Clock, ...); copied to plugins/ by the host build
+tests/                xUnit projects
+docs/                 ROADMAP.md, perf/, design notes
+openspec/             spec-driven change documents
 ```
 
 Shared build settings live in `Directory.Build.props`; package versions only in `Directory.Packages.props`
 (no `Version=` on `PackageReference`). Style is in `.editorconfig`: file-scoped namespaces, `_camelCase` private
 instance fields, PascalCase static fields, `var` only when the type is apparent, LF line endings. Every `.cs` file
-needs the SPDX license header (`dotnet format` adds it): GPL-3.0-or-later everywhere except `src/UrDeck.Analyzer` (MIT).
+needs the SPDX license header (`dotnet format` adds it): GPL-3.0-or-later everywhere except `sdk/` (MIT).
+Widgets reference only `UrDeck.Sdk`, never `UrDeck.Engine` or `UrDeck.Host`; keep it that way, it is the license boundary.
 See the README license map before moving code between projects: it can change the license.
 
 ## Windows / WPF gotchas

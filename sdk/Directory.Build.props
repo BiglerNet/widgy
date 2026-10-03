@@ -1,0 +1,12 @@
+<Project>
+
+  <!-- Keep the repo-wide settings. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!-- Everything under sdk/ is MIT-licensed (see sdk/LICENSE); the rest of the repo defaults to GPL-3.0-or-later. -->
+  <PropertyGroup>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Copyright>Copyright (c) 2026 Patrick Bigler</Copyright>
+  </PropertyGroup>
+
+</Project>

@@ -8,11 +8,11 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 using SkiaSharp;
-using UrDeck.Core.Config;
-using UrDeck.Core.Diagnostics;
-using UrDeck.Core.Interfaces;
-using UrDeck.Core.Plugin;
-using UrDeck.Core.Rendering;
+using UrDeck.Engine.Config;
+using UrDeck.Engine.Diagnostics;
+using UrDeck.Engine.Plugin;
+using UrDeck.Engine.Rendering;
+using UrDeck.Sdk;
 
 namespace UrDeck.Host;
 

@@ -10,7 +10,7 @@
         <PackageReference Include="SkiaSharp.Views.WPF" />
     </ItemGroup>
     <ItemGroup>
-        <ProjectReference Include="..\UrDeck.Core\UrDeck.Core.csproj" />
+        <ProjectReference Include="..\UrDeck.Engine\UrDeck.Engine.csproj" />
         <!-- Build the built-in plugin with the host, but load it from plugins/ at runtime (not referenced). -->
         <ProjectReference Include="..\..\widgets\UrDeck.Widgets.Clock\UrDeck.Widgets.Clock.csproj">
             <ReferenceOutputAssembly>false</ReferenceOutputAssembly>

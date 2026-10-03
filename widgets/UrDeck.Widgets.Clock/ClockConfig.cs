@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Patrick Bigler
 
-using UrDeck.Core.Config;
+using UrDeck.Sdk;
 
 namespace UrDeck.Widgets.Clock.Config;
 

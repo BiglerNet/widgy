@@ -1,7 +1,10 @@
 <Solution>
+  <Folder Name="/sdk/">
+    <Project Path="sdk/UrDeck.Analyzer/UrDeck.Analyzer.csproj" />
+    <Project Path="sdk/UrDeck.Sdk/UrDeck.Sdk.csproj" />
+  </Folder>
   <Folder Name="/src/">
-    <Project Path="src/UrDeck.Analyzer/UrDeck.Analyzer.csproj" />
-    <Project Path="src/UrDeck.Core/UrDeck.Core.csproj" />
+    <Project Path="src/UrDeck.Engine/UrDeck.Engine.csproj" />
     <Project Path="src/UrDeck.Host/UrDeck.Host.csproj" />
   </Folder>
   <Folder Name="/widgets/">
@@ -9,6 +12,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/UrDeck.Analyzer.Tests/UrDeck.Analyzer.Tests.csproj" />
-    <Project Path="tests/UrDeck.Core.Tests/UrDeck.Core.Tests.csproj" />
+    <Project Path="tests/UrDeck.Engine.Tests/UrDeck.Engine.Tests.csproj" />
   </Folder>
 </Solution>

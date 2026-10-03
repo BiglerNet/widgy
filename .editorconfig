@@ -15,7 +15,7 @@ indent_size = 2
 trim_trailing_whitespace = false
 
 [*.cs]
-# License header (SPDX). The analyzer is MIT and overrides this below; everything else is GPL.
+# License header (SPDX). Everything under sdk/ is MIT (override below); the rest is GPL.
 file_header_template = SPDX-License-Identifier: GPL-3.0-or-later\nCopyright (C) 2026 Patrick Bigler
 dotnet_diagnostic.IDE0073.severity = warning
 
@@ -92,8 +92,8 @@ dotnet_naming_rule.members_pascal.symbols = non_field_members
 dotnet_naming_rule.members_pascal.style = pascal_case
 dotnet_naming_rule.members_pascal.severity = warning
 
-# The analyzer is MIT-licensed (see src/UrDeck.Analyzer/LICENSE)
-[src/UrDeck.Analyzer/**.cs]
+# Everything under sdk/ is MIT-licensed (see sdk/LICENSE)
+[sdk/**.cs]
 file_header_template = SPDX-License-Identifier: MIT\nCopyright (c) 2026 Patrick Bigler
 
 # Tests may use underscores in method names (Method_Scenario_Expected)

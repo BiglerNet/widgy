@@ -27,9 +27,9 @@ force pushes or deletion, squash merges only.
 ## Licensing
 
 - See the license map in the [README](README.md#license). The default is GPL-3.0-or-later with the
-  [plugin exception](PLUGIN-EXCEPTION.md); `src/UrDeck.Analyzer` (and the future `UrDeck.Sdk`) is MIT.
+  [plugin exception](PLUGIN-EXCEPTION.md); everything under `sdk/` (`UrDeck.Sdk`, `UrDeck.Analyzer`) is MIT.
 - Every C# file starts with an SPDX header (`SPDX-License-Identifier` plus a copyright line). It is enforced by
-  `.editorconfig` (IDE0073), so `dotnet format` adds it to new files; the analyzer directory gets the MIT header
+  `.editorconfig` (IDE0073), so `dotnet format` adds it to new files; files under `sdk/` get the MIT header
   automatically. Put a new project's license in its csproj (`PackageLicenseExpression`) if it differs from the default.
 - By contributing you agree that your contribution is licensed under the license of the directory you change
   (inbound = outbound). There is no CLA or DCO for now.
@@ -42,24 +42,20 @@ force pushes or deletion, squash merges only.
   file-scoped namespaces, `using`s outside the namespace and sorted, `_camelCase` private instance fields, PascalCase
   static fields, `I` prefix for interfaces, `var` only when the type is apparent, LF line endings.
 - Shared MSBuild settings are in `Directory.Build.props`; package versions are only in `Directory.Packages.props`.
-- Tests: xUnit in `tests/`. `UrDeck.Core` has a line-coverage floor (currently 65%, enforced in CI; raise it when
+- Tests: xUnit in `tests/`. `UrDeck.Engine` has a line-coverage floor (currently 65%, enforced in CI; raise it when
   coverage improves, never lower it to make a PR pass).
 - New files get the license header automatically via `dotnet format`.
 - Comments explain why, not what. Match the surrounding code.
 
 ## Writing a widget
 
-A widget is a class deriving from `Widget<TConfig>` in a class library that references `UrDeck.Core`. Attributes
+A widget is a class deriving from `Widget<TConfig>` in a class library that references `UrDeck.Sdk`. Attributes
 provide the metadata, so you normally override only `Render`. `Render` is synchronous, runs on the UI thread and must
 be fast; override `UpdateAsync` to fetch data off the render path.
 
 ```csharp
 using SkiaSharp;
-using UrDeck.Core;
-using UrDeck.Core.Attributes;
-using UrDeck.Core.Config;
-using UrDeck.Core.Enums;
-using UrDeck.Core.Rendering;
+using UrDeck.Sdk;
 
 public class HelloConfig : WidgetConfig
 {
@@ -99,9 +95,9 @@ Project file for a first-party widget (modelled on `widgets/UrDeck.Widgets.Clock
     <TargetFramework>$(UrDeckTfm)</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <!-- UrDeck.Core and SkiaSharp come from the host at runtime; do not copy them next to the plugin. -->
-    <ProjectReference Include="..\..\src\UrDeck.Core\UrDeck.Core.csproj" Private="false" />
-    <ProjectReference Include="..\..\src\UrDeck.Analyzer\UrDeck.Analyzer.csproj">
+    <!-- UrDeck.Sdk and SkiaSharp come from the host at runtime; do not copy them next to the plugin. -->
+    <ProjectReference Include="..\..\sdk\UrDeck.Sdk\UrDeck.Sdk.csproj" Private="false" />
+    <ProjectReference Include="..\..\sdk\UrDeck.Analyzer\UrDeck.Analyzer.csproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <OutputItemType>Analyzer</OutputItemType>
     </ProjectReference>
