@@ -29,13 +29,16 @@ change under `openspec/changes/`. Work one item per session.
 Suggested model per item is noted as **Model**. Items marked Opus involve architecture decisions or hard debugging;
 everything else should be fine on Sonnet.
 
-## Current state (2026-09-29)
+## Current state (2026-10-03)
 
-- `urdeck-framework` change (Phase 1 foundation) is nearly complete: SDK, analyzer, plugin loader with hot-reload
-  (collectible AssemblyLoadContext), grid layout, WPF host with per-monitor DPI placement, Clock widget, tests.
-- Proposed, not started: `theme-engine`, `display-targeting`.
-- Memory: ~66 MB private / ~115 MB working set (Release, one Clock, software WPF composition). Idle CPU negligible.
-  See `docs/perf/memory-investigation.md`.
+- `urdeck-framework` (Phase 1 foundation) is complete and archived: SDK, analyzer, plugin loader with hot-reload
+  (collectible AssemblyLoadContext), grid layout, WPF host with per-monitor DPI placement, Clock widget, tests, placeholder
+  icon and render skipping (`NeedsRender`).
+- Repo structure, licensing, the rename and the SDK/Engine split are done (item 1). The repo is `UrDeck/urdeck`.
+- Proposed, not started: `theme-engine` and `display-targeting` (older drafts, to be reworked with `/opsx:explore` then
+  `/opsx:propose`), and `data-providers` (item 3, not written yet).
+- Memory: baseline decided. Keep the WPF host; ~66 MB private (60-70 MB) / ~115 MB working set (Release, one Clock,
+  software WPF composition). Idle CPU negligible. See `docs/perf/memory-investigation.md`.
 
 ---
 
@@ -74,7 +77,7 @@ Tasks:
   review checklist.
 - [x] GitHub Actions CI on `windows-latest`: build, test, `dotnet format --verify-no-changes`, `openspec validate --all --strict`.
 - [x] Product name decided: **UrDeck**. License decided: see "Naming, licensing and hosting" below.
-- [ ] Placeholder app icon (task 9.1/9.2 of `urdeck-framework`); final logo/branding deferred.
+- [x] Placeholder app icon (done when `urdeck-framework` was closed); final logo/branding deferred.
 
 ### Git workflow and GitHub maintenance
 
@@ -151,19 +154,34 @@ in [docs/design/sdk-engine-split-full-tasks.md](design/sdk-engine-split-full-tas
 
 This file. Keep "Current state" and item status up to date at the end of each session.
 
-## 3. Finish refresh strategies, then archive `urdeck-framework`
+## 3. Data providers (new `data-providers` change)
 
-**Why:** the SDK promises three refresh strategies; only `[RefreshOnTick]` fully works.
-**Model:** Sonnet (Opus if the event-bus design gets contentious).
+**Why:** `[RefreshOnEvent]` and `[RefreshAdaptive]` (the last open parts of the old framework change) only make sense with
+shared data: several widgets that all want CPU/GPU/memory (or weather, now-playing) should not each poll.
+**Model:** Opus for the design (it fixes public SDK API), Sonnet to implement.
 
-- `[RefreshOnEvent("name")]` (task 10.1): an in-process event bus (the publish/subscribe contract in UrDeck.Sdk, the implementation in UrDeck.Engine). Publishers (future data providers
-  like a sensor service) publish by name; the host marshals to the UI thread and invalidates subscribed widgets.
-  Subscriptions must be dropped on plugin reload. Today such widgets render once.
-- `[RefreshAdaptive(minMs, maxMs)]` (task 10.2): scale the interval between min and max based on system load
-  (e.g. process/system CPU) or on-battery; today it runs at `minMs`.
-- Skip redundant redraws: let a widget report "nothing changed" (e.g. `UpdateAsync` returning a bool, or a
-  `bool NeedsRender(DateTime now)`); the Clock should repaint once a minute, not every second.
-- Placeholder icon (see item 1), then run the OpenSpec archive workflow for `urdeck-framework`.
+Done in `urdeck-framework`: skipping redundant redraws via `IWidget.NeedsRender(DateTime now)` (the Clock repaints once a
+minute) and the placeholder icon.
+
+Design direction, to be validated with `/opsx:explore` then `/opsx:propose` and an Opus review:
+
+- A latest-value store plus a change signal, not a pipeline framework: named **topics** (`system.cpu`,
+  `media.nowplaying`), each with a typed latest value.
+- **Providers** are a plugin kind in the SDK, so community authors are not locked into official data; official providers use
+  the same public API. One provider per topic, owned by the engine. Polled providers implement `Sample()` and the engine
+  schedules them at the fastest rate any subscriber needs; pushed providers publish when something happens (media, power).
+- **Demand-driven:** a provider starts when its first widget subscribes and stops with the last. Subscriptions are dropped on
+  plugin reload.
+- **Consuming:** a widget declares the topics it uses (replacing the bare `[RefreshOnEvent("name")]`) and reads the latest
+  value at draw time (a cached read, no I/O); the engine redraws it when a topic changes.
+- **Adaptive refresh** (`[RefreshAdaptive]`, today it runs at `minMs`) becomes a consumer of the `system.cpu` topic: back off
+  when the machine is busy (a case display often runs next to a game) and on battery.
+- Hard problems to settle in the design: sharing payload types across plugin load contexts (standard payload types in the SDK
+  plus a generic schema'd value for community topics; shared contract assemblies later), engine-owned scheduling and fault
+  containment so a bad provider cannot spin or hang, topic naming and collisions, naming providers in
+  `PLUGIN-EXCEPTION.md`, and which "Parked" SDK items (loader hardening, versioning, API tracking) must land first.
+  Optional later: providers that subscribe to other topics (derived data).
+- Keep the first implementation minimal. First-party providers (system CPU/memory) serve the default widget set (item 7).
 
 ## 4. Performance budgets and measurement
 
@@ -222,7 +240,7 @@ widget palette with performance tiers. Likely a separate window on the primary m
 
 ## 12. Packaging and distribution
 
-Installer, start with Windows, tray icon, auto-update, logo and branding, winget manifest and GitHub release automation, and a third-party notices file
+Installer, start with Windows, tray icon (and using the `icon` config field for it, moved from `urdeck-framework`), auto-update, logo and branding, winget manifest and GitHub release automation, and a third-party notices file
 (SkiaSharp is MIT and must be attributed in binary releases). **Model:** Sonnet.
 
 ## 13. SDK distribution and other displays

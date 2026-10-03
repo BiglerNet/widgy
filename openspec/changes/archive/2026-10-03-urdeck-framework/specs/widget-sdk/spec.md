@@ -91,7 +91,7 @@ Widget configuration data MUST be serializable to/from JSON. The `WidgetConfig` 
 - `int Height` — Height in grid rows (1-N)
 - `Dictionary<string, string> Parameters` — Free-form key-value parameters
 - `bool IsVisible` — Visibility flag
-- Widget-specific settings as additional properties on the widget's JSON object, preserved through `[JsonExtensionData]` and converted to the concrete config type (via `ToConcrete`) when the widget is created; properties absent from the JSON keep the concrete type's defaults
+- Widget-specific settings as additional properties on the widget's JSON object, preserved through `[JsonExtensionData]` and converted to the concrete config type (by the engine through its `ToConcrete` extension) when the widget is created; properties absent from the JSON keep the concrete type's defaults
 
 #### Scenario: Config serializes to JSON
 - **WHEN** `WidgetConfig` is serialized with `System.Text.Json`
@@ -125,7 +125,7 @@ The runtime MUST maintain a `WidgetRegistry` that:
 The plugin loader MUST load each plugin DLL into its own collectible `AssemblyLoadContext` from a shadow copy:
 
 - The original DLL is never locked and can be overwritten or deleted while loaded
-- `UrDeck.Core`, SkiaSharp and framework assemblies resolve from the default context so widget contract types are shared with the host
+- `UrDeck.Sdk`, SkiaSharp and framework assemblies resolve from the default context so widget contract types are shared with the host
 - On reload, previous contexts are unloaded and the registry is rebuilt; a corrupt DLL is skipped without affecting the others
 - Unloaded contexts SHOULD become collectible; the loader logs a warning if one is still alive after 4 seconds
 
@@ -137,12 +137,23 @@ The plugin loader MUST load each plugin DLL into its own collectible `AssemblyLo
 - **WHEN** the plugin DLL is replaced and a reload occurs
 - **THEN** the new version is registered and the old one is unloaded
 
+### Requirement: Render Skipping
+A widget MAY tell the host that nothing visible changed since the last paint. `IWidget` exposes `bool NeedsRender(DateTime now)` as a default interface method that returns `true`; `Widget<TConfig>` exposes it as a virtual member. The host MUST call it after each refresh and MUST skip the repaint when it returns `false`.
+
+#### Scenario: Default behavior
+- **WHEN** a widget does not override `NeedsRender`
+- **THEN** it is repainted on every refresh
+
+#### Scenario: Widget reports no change
+- **WHEN** `NeedsRender` returns `false` after a refresh
+- **THEN** the host does not repaint that widget until it returns `true` or the widget is placed again
+
 ### Requirement: Refresh Policy System
 Each widget declares its refresh strategy. The runtime MUST:
 
 - Support `[RefreshOnTick(interval, unit)]` — schedule a timer that refreshes and renders at fixed intervals (units: milliseconds, seconds, minutes, hours)
-- Support `[RefreshAdaptive(minMs, maxMs)]` — schedule a timer with a dynamic interval based on system load. **Current status:** runs at `minMs`; load-based scaling is not yet implemented
-- Support `[RefreshOnEvent(eventName)]` — register a callback that triggers render when a named event fires. **Current status:** not implemented; the widget renders once on load and no event channel exists yet
+- Support `[RefreshAdaptive(minMs, maxMs)]` — schedule a timer at `minMs` (load-based scaling up to `maxMs` is specified by a later change)
+- Support `[RefreshOnEvent(eventName)]` — the widget is rendered once on load (event-driven refresh is specified by a later change)
 - Never schedule timers for widgets without a timer-based strategy
 - Never allow a widget to have zero or multiple refresh strategies (compile-time and runtime error)
 
@@ -150,10 +161,9 @@ Each widget declares its refresh strategy. The runtime MUST:
 - **WHEN** a widget has `[RefreshOnTick(1, TimeUnit.Seconds)]`
 - **THEN** the runtime schedules a timer that refreshes and renders every 1 second
 
-#### Scenario: OnEvent refresh works (not yet implemented)
+#### Scenario: OnEvent widget renders once
 - **WHEN** a widget has `[RefreshOnEvent("perfUpdate")]`
-- **THEN** the runtime listens on the "perfUpdate" event channel and triggers render only on new data
-- **NOTE** Pending the event bus; today such a widget renders once on load.
+- **THEN** the widget is rendered once on load and no timer is scheduled for it
 
 #### Scenario: No refresh strategy is an error
 - **WHEN** a widget has no refresh attribute

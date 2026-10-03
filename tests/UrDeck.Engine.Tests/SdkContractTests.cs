@@ -16,4 +16,20 @@ public class SdkContractTests
         var version = typeof(Widget<>).Assembly.GetName().Version;
         Assert.Equal(new Version(0, 1, 0, 0), version);
     }
+
+    [Fact]
+    public void NeedsRender_DefaultsToTrue()
+    {
+        // A widget that does not override it is repainted on every refresh.
+        IWidget widget = new PlainWidget();
+
+        Assert.True(widget.NeedsRender(DateTime.Now));
+    }
+
+    private sealed class PlainWidget : Widget<WidgetConfig>
+    {
+        public override void Render(WidgetRenderContext context)
+        {
+        }
+    }
 }

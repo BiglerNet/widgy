@@ -23,6 +23,7 @@ internal sealed class WidgetView : SKElement, IDisposable
     private readonly DispatcherTimer? _timer;
     private readonly CancellationTokenSource _cts = new();
     private bool _updating;
+    private bool _hasPainted;
 
     public WidgetView(IWidget widget, WidgetDescriptor descriptor, ThemeColors theme)
     {
@@ -62,7 +63,23 @@ internal sealed class WidgetView : SKElement, IDisposable
         {
             _updating = false;
         }
-        InvalidateVisual();
+
+        // The first refresh always paints; later ones only when the widget says something changed.
+        if (!_hasPainted || SafeNeedsRender())
+            InvalidateVisual();
+    }
+
+    private bool SafeNeedsRender()
+    {
+        try
+        {
+            return _widget.NeedsRender(DateTime.Now);
+        }
+        catch (Exception ex)
+        {
+            UrDeckLog.Error($"Widget '{_widget.Name}' NeedsRender failed; repainting", ex);
+            return true;
+        }
     }
 
     private void OnPaintSurface(object? sender, SKPaintSurfaceEventArgs e)
@@ -77,6 +94,7 @@ internal sealed class WidgetView : SKElement, IDisposable
             _widget.Config,
             _cts.Token);
         WidgetPainter.RenderSafely(_widget, ctx);
+        _hasPainted = true;
     }
 
     public void Dispose()

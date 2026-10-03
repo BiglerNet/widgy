@@ -54,19 +54,31 @@ The host MUST use `SkiaSharp.Views.WPF.SKElement` for widget rendering:
 The host MUST drive each widget from its own refresh policy, with no global render loop:
 
 - `RefreshOnTick` — a per-widget `DispatcherTimer` at the declared interval; each tick awaits `UpdateAsync` and then repaints
-- `RefreshAdaptive` — currently a timer at `MinMs`; scaling between `MinMs` and `MaxMs` is NOT yet implemented
-- `RefreshOnEvent` — the widget renders once on load; the event channel/bus is NOT yet implemented
+- `RefreshAdaptive` — a timer at `MinMs` (load-based scaling up to `MaxMs` is specified by a later change)
+- `RefreshOnEvent` — the widget renders once on load (event-driven refresh is specified by a later change)
 - Overlapping updates for one widget are skipped, not queued
+- After each refresh the host asks `IWidget.NeedsRender(now)` and repaints only when it returns `true`; a widget is always painted when first placed, after a config change and after a page rebuild
 
 #### Scenario: Idle dashboard
 - **WHEN** only a 1-second Clock is placed
 - **THEN** the only recurring work is that widget's 1s timer (measured idle CPU ~0.03%)
 
+#### Scenario: Unchanged widget skips repaint
+- **WHEN** a 1-second Clock ticks again within the same displayed minute
+- **THEN** `UpdateAsync` runs but `NeedsRender` returns `false` and the widget is not repainted
+
+### Requirement: Application Icon
+The host executable MUST embed an application icon so the executable, taskbar and window show it. The current artwork is a placeholder.
+
+#### Scenario: Icon is present
+- **WHEN** the built `UrDeck.Host.exe` is inspected
+- **THEN** it carries an embedded icon
+
 ### Requirement: Plugin Directory Setup
 The host MUST discover plugins in the `plugins/` subdirectory of its executable:
 
 - Creates `plugins/` if missing and scans it for `.dll` files on startup
-- Loads each assembly into its own collectible `AssemblyLoadContext` from a shadow copy under the system temp folder (`urdeck-shadow/<pid>/`), so the original file is never locked; `UrDeck.Core`, SkiaSharp and the framework resolve from the default context
+- Loads each assembly into its own collectible `AssemblyLoadContext` from a shadow copy under the system temp folder (`urdeck-shadow/<pid>/`), so the original file is never locked; `UrDeck.Sdk`, SkiaSharp and the framework resolve from the default context
 - Uses `FileSystemWatcher` to detect changes and hot-reloads: unloads old contexts, re-registers widgets, and rebuilds the page (`PluginsChanged`)
 - Debounces file change events by 500ms
 - Logs warnings for assembly load failures and continues loading remaining plugins

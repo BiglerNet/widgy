@@ -25,8 +25,18 @@ public class ClockWidget : Widget<ClockConfig>
         SKTypeface.FromFamilyName("Segoe UI", SKFontStyleWeight.Light, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright)
         ?? SKTypeface.Default;
 
+    // The minute that was last painted. The widget ticks every second to catch the rollover promptly,
+    // but only repaints when the displayed minute (which also covers the date) changes.
+    private DateTime? _lastRenderedMinute;
+
+    public override bool NeedsRender(DateTime now) => _lastRenderedMinute != TruncateToMinute(now);
+
+    protected override void OnConfigured() => _lastRenderedMinute = null;
+
     public override void Render(WidgetRenderContext context)
     {
+        _lastRenderedMinute = TruncateToMinute(context.Time);
+
         var canvas = context.Canvas;
         var theme = context.Theme;
         float width = context.PixelSize.Width;
@@ -70,6 +80,9 @@ public class ClockWidget : Widget<ClockConfig>
             canvas.DrawText(dateText, cx, top + timeCap + gap + dateCap, SKTextAlign.Center, dateFont, datePaint);
         }
     }
+
+    private static DateTime TruncateToMinute(DateTime time) =>
+        new(time.Year, time.Month, time.Day, time.Hour, time.Minute, 0, time.Kind);
 
     private static void DrawPanel(SKCanvas canvas, float width, float height, ThemeColors theme)
     {
