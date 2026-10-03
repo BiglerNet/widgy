@@ -1,0 +1,14 @@
+{
+  "colors": {
+    "background": "#e9ebf2",
+    "cardFill": "#ffffff",
+    "cardBorder": "#1a000000",
+    "text": "#14141f",
+    "textMuted": "#b314141f",
+    "accent": "#1f6feb",
+    "accentDim": "#661f6feb",
+    "good": "#1a9e55",
+    "warning": "#c77700",
+    "critical": "#d92d20"
+  }
+}

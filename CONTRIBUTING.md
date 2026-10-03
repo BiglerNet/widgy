@@ -56,6 +56,7 @@ be fast; override `UpdateAsync` to fetch data off the render path.
 ```csharp
 using SkiaSharp;
 using UrDeck.Sdk;
+using UrDeck.Sdk.Components;
 
 public class HelloConfig : WidgetConfig
 {
@@ -71,13 +72,17 @@ public class HelloWidget : Widget<HelloConfig>
 {
     public override void Render(WidgetRenderContext context)
     {
-        using var font = new SKFont(SKTypeface.Default, context.PixelSize.Height * 0.3f);
-        using var paint = new SKPaint { Color = context.Theme.TextColor, IsAntialias = true };
-        context.Canvas.DrawText(Config.Text, context.PixelSize.Width / 2f, context.PixelSize.Height * 0.6f,
-            SKTextAlign.Center, font, paint);
+        // The host has already drawn the card (fill, border, rounded clip). Draw content inside ContentRect with the
+        // shared components; the theme supplies fonts, sizes and colours.
+        Readout.Draw(context.Canvas, context.Theme, context.ContentRect, "42",
+            new ReadoutOptions { Unit = "%", Label = Config.Text, WidestValue = "100" });
     }
 }
 ```
+
+Widgets draw no card or background and name no font or fixed size: the theme owns the look of every widget on the page
+(see [docs/themes.md](docs/themes.md)). Use `Readout` for a big value with a unit and label, `TextLine` for a line of
+text at the theme's label, body or title size, and `context.Theme` for colours.
 
 Rules enforced at compile time by the analyzer and again by the loader:
 

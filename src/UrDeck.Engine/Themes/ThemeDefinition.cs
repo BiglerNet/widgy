@@ -1,0 +1,203 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Patrick Bigler
+
+using System.Text.RegularExpressions;
+using UrDeck.Engine.Diagnostics;
+
+namespace UrDeck.Engine.Themes;
+
+/// <summary>
+/// The shape of a theme's settings file. Every member is nullable so that a partial user theme can be merged over the
+/// default theme. Sizes are fractions of the grid cell; colours are <c>#RRGGBB</c> or <c>#AARRGGBB</c>.
+/// </summary>
+public sealed partial class ThemeDefinition
+{
+    public ThemeColorsDefinition? Colors { get; set; }
+    public ThemeCardDefinition? Card { get; set; }
+    public ThemeTypographyDefinition? Typography { get; set; }
+    public ThemeStrokeDefinition? Stroke { get; set; }
+
+    /// <summary>This definition's values, with anything it leaves out taken from <paramref name="baseline"/>.</summary>
+    public ThemeDefinition MergeOver(ThemeDefinition baseline) => new()
+    {
+        Colors = (Colors ?? new ThemeColorsDefinition()).MergeOver(baseline.Colors),
+        Card = (Card ?? new ThemeCardDefinition()).MergeOver(baseline.Card),
+        Typography = (Typography ?? new ThemeTypographyDefinition()).MergeOver(baseline.Typography),
+        Stroke = (Stroke ?? new ThemeStrokeDefinition()).MergeOver(baseline.Stroke),
+    };
+
+    /// <summary>Clears every invalid value (so a merge replaces it with the default's) and logs a warning for each.</summary>
+    internal void Sanitize(string themeName)
+    {
+        var check = new ValueCheck(themeName);
+        if (Colors is { } c)
+        {
+            c.Background = check.Color("colors.background", c.Background);
+            c.CardFill = check.Color("colors.cardFill", c.CardFill);
+            c.CardBorder = check.Color("colors.cardBorder", c.CardBorder);
+            c.Text = check.Color("colors.text", c.Text);
+            c.TextMuted = check.Color("colors.textMuted", c.TextMuted);
+            c.Accent = check.Color("colors.accent", c.Accent);
+            c.AccentDim = check.Color("colors.accentDim", c.AccentDim);
+            c.Good = check.Color("colors.good", c.Good);
+            c.Warning = check.Color("colors.warning", c.Warning);
+            c.Critical = check.Color("colors.critical", c.Critical);
+        }
+        if (Card is { } card)
+        {
+            card.Radius = check.Number("card.radius", card.Radius, 0, 1);
+            card.BorderWidth = check.Number("card.borderWidth", card.BorderWidth, 0, 1);
+            card.Gap = check.Number("card.gap", card.Gap, 0, 1);
+            card.Padding = check.Number("card.padding", card.Padding, 0, 1);
+        }
+        if (Typography is { } t)
+        {
+            t.LabelSize = check.Number("typography.labelSize", t.LabelSize, 0.005, 1);
+            t.BodySize = check.Number("typography.bodySize", t.BodySize, 0.005, 1);
+            t.TitleSize = check.Number("typography.titleSize", t.TitleSize, 0.005, 1);
+            t.UnitRatio = check.Number("typography.unitRatio", t.UnitRatio, 0.05, 1);
+            if (t.Font is { } font && string.IsNullOrWhiteSpace(font))
+                t.Font = null;
+            if (t.Weights is { } w)
+            {
+                w.Value = check.Number("typography.weights.value", w.Value, 1, 1000);
+                w.Unit = check.Number("typography.weights.unit", w.Unit, 1, 1000);
+                w.Label = check.Number("typography.weights.label", w.Label, 1, 1000);
+                w.Body = check.Number("typography.weights.body", w.Body, 1, 1000);
+                w.Title = check.Number("typography.weights.title", w.Title, 1, 1000);
+            }
+        }
+        if (Stroke is { } s)
+        {
+            s.Thickness = check.Number("stroke.thickness", s.Thickness, 0.001, 1);
+            if (s.Cap is { } cap && !cap.Equals("round", StringComparison.OrdinalIgnoreCase)
+                && !cap.Equals("square", StringComparison.OrdinalIgnoreCase))
+            {
+                UrDeckLog.Warn($"Theme '{themeName}': stroke.cap '{cap}' must be 'round' or 'square'; using the default.");
+                s.Cap = null;
+            }
+        }
+    }
+
+    private sealed partial class ValueCheck(string themeName)
+    {
+        [GeneratedRegex("^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")]
+        private static partial Regex ColorPattern();
+
+        public string? Color(string path, string? value)
+        {
+            if (value == null || ColorPattern().IsMatch(value))
+                return value;
+            UrDeckLog.Warn($"Theme '{themeName}': {path} '{value}' is not #RRGGBB or #AARRGGBB; using the default.");
+            return null;
+        }
+
+        public double? Number(string path, double? value, double min, double max)
+        {
+            if (value == null)
+                return null;
+            if (double.IsFinite(value.Value) && value >= min && value <= max)
+                return value;
+            UrDeckLog.Warn($"Theme '{themeName}': {path} {value} is outside {min}..{max}; using the default.");
+            return null;
+        }
+    }
+}
+
+public sealed class ThemeColorsDefinition
+{
+    public string? Background { get; set; }
+    public string? CardFill { get; set; }
+    public string? CardBorder { get; set; }
+    public string? Text { get; set; }
+    public string? TextMuted { get; set; }
+    public string? Accent { get; set; }
+    public string? AccentDim { get; set; }
+    public string? Good { get; set; }
+    public string? Warning { get; set; }
+    public string? Critical { get; set; }
+
+    internal ThemeColorsDefinition MergeOver(ThemeColorsDefinition? b) => new()
+    {
+        Background = Background ?? b?.Background,
+        CardFill = CardFill ?? b?.CardFill,
+        CardBorder = CardBorder ?? b?.CardBorder,
+        Text = Text ?? b?.Text,
+        TextMuted = TextMuted ?? b?.TextMuted,
+        Accent = Accent ?? b?.Accent,
+        AccentDim = AccentDim ?? b?.AccentDim,
+        Good = Good ?? b?.Good,
+        Warning = Warning ?? b?.Warning,
+        Critical = Critical ?? b?.Critical,
+    };
+}
+
+/// <summary>Card shape, as fractions of the grid cell.</summary>
+public sealed class ThemeCardDefinition
+{
+    public double? Radius { get; set; }
+    public double? BorderWidth { get; set; }
+    public double? Gap { get; set; }
+    public double? Padding { get; set; }
+
+    internal ThemeCardDefinition MergeOver(ThemeCardDefinition? b) => new()
+    {
+        Radius = Radius ?? b?.Radius,
+        BorderWidth = BorderWidth ?? b?.BorderWidth,
+        Gap = Gap ?? b?.Gap,
+        Padding = Padding ?? b?.Padding,
+    };
+}
+
+public sealed class ThemeWeightsDefinition
+{
+    public double? Value { get; set; }
+    public double? Unit { get; set; }
+    public double? Label { get; set; }
+    public double? Body { get; set; }
+    public double? Title { get; set; }
+
+    internal ThemeWeightsDefinition MergeOver(ThemeWeightsDefinition? b) => new()
+    {
+        Value = Value ?? b?.Value,
+        Unit = Unit ?? b?.Unit,
+        Label = Label ?? b?.Label,
+        Body = Body ?? b?.Body,
+        Title = Title ?? b?.Title,
+    };
+}
+
+public sealed class ThemeTypographyDefinition
+{
+    /// <summary>An installed font family name, or a <c>.ttf</c>/<c>.otf</c> file name inside the theme's folder.</summary>
+    public string? Font { get; set; }
+    public ThemeWeightsDefinition? Weights { get; set; }
+    public double? LabelSize { get; set; }
+    public double? BodySize { get; set; }
+    public double? TitleSize { get; set; }
+    public double? UnitRatio { get; set; }
+
+    internal ThemeTypographyDefinition MergeOver(ThemeTypographyDefinition? b) => new()
+    {
+        Font = Font ?? b?.Font,
+        Weights = (Weights ?? new ThemeWeightsDefinition()).MergeOver(b?.Weights),
+        LabelSize = LabelSize ?? b?.LabelSize,
+        BodySize = BodySize ?? b?.BodySize,
+        TitleSize = TitleSize ?? b?.TitleSize,
+        UnitRatio = UnitRatio ?? b?.UnitRatio,
+    };
+}
+
+public sealed class ThemeStrokeDefinition
+{
+    /// <summary>Line thickness as a fraction of the drawn element's size.</summary>
+    public double? Thickness { get; set; }
+    /// <summary>"round" or "square".</summary>
+    public string? Cap { get; set; }
+
+    internal ThemeStrokeDefinition MergeOver(ThemeStrokeDefinition? b) => new()
+    {
+        Thickness = Thickness ?? b?.Thickness,
+        Cap = Cap ?? b?.Cap,
+    };
+}

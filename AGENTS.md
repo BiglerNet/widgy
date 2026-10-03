@@ -30,7 +30,7 @@ CI (`.github/workflows/ci.yml`) runs all of the above on `windows-latest`; run t
 ## Layout
 
 ```
-sdk/UrDeck.Sdk       MIT. The plugin contract: attributes, Widget<T>, WidgetConfig, render context, ThemeColors
+sdk/UrDeck.Sdk       MIT. The plugin contract: attributes, Widget<T>, WidgetConfig, render context, Theme, Components (Readout, TextLine)
 sdk/UrDeck.Analyzer  MIT. Roslyn analyzer (URDECK001-005), netstandard2.0
 src/UrDeck.Engine     GPL. Plugin loader, config store, grid layout, PageRenderer, logging
 src/UrDeck.Host       GPL. WPF app: window/monitor placement, one SKElement per widget
@@ -59,5 +59,5 @@ See the README license map before moving code between projects: it can change th
 - In Git Bash, MSYS rewrites `/p:Foo` style switches as paths; use `-p:Foo`.
 - Plugins load from a shadow copy in a collectible `AssemblyLoadContext`. WPF pins assemblies in internal caches
   (see `src/UrDeck.Host/WpfAssemblyCache.cs`); keep plugin types out of long-lived static caches.
-- Do not add per-widget styling or resolution assumptions: styling belongs in the (planned) theme engine and the user
-  never sees resolution or scaling.
+- Do not add per-widget styling or resolution assumptions: styling belongs in the theme (`src/UrDeck.Engine/Themes`, `docs/themes.md`)
+  and the user never sees resolution or scaling. Widgets draw no card and name no font; use the SDK components.

@@ -19,13 +19,13 @@ namespace UrDeck.Host;
 internal sealed class WidgetView : SKElement, IDisposable
 {
     private readonly IWidget _widget;
-    private readonly ThemeColors _theme;
+    private readonly Theme _theme;
     private readonly DispatcherTimer? _timer;
     private readonly CancellationTokenSource _cts = new();
     private bool _updating;
     private bool _hasPainted;
 
-    public WidgetView(IWidget widget, WidgetDescriptor descriptor, ThemeColors theme)
+    public WidgetView(IWidget widget, WidgetDescriptor descriptor, Theme theme)
     {
         _widget = widget;
         _theme = theme;
@@ -86,14 +86,13 @@ internal sealed class WidgetView : SKElement, IDisposable
     {
         var canvas = e.Surface.Canvas;
         canvas.Clear(SKColors.Transparent);
-        var ctx = new WidgetRenderContext(
+        WidgetPainter.Paint(
+            _widget,
             canvas,
-            DateTime.Now,
             new System.Drawing.Size(e.Info.Width, e.Info.Height),
             _theme,
-            _widget.Config,
+            DateTime.Now,
             _cts.Token);
-        WidgetPainter.RenderSafely(_widget, ctx);
         _hasPainted = true;
     }
 

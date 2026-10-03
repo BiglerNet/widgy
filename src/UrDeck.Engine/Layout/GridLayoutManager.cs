@@ -13,11 +13,14 @@ public class GridLayoutManager
     public double ColumnWidth => ScreenWidth / 4;
     public double RowHeight => ColumnWidth;
 
+    /// <summary>The theme's gap between cards, as a fraction of the column width. Each card is inset by half of it.</summary>
+    public double GapFraction { get; }
 
-    public GridLayoutManager(double screenWidth, double screenHeight)
+    public GridLayoutManager(double screenWidth, double screenHeight, double gapFraction = 0)
     {
         ScreenWidth = screenWidth;
         ScreenHeight = screenHeight;
+        GapFraction = gapFraction;
     }
 
     public System.Drawing.Point ConvertToPixels(int col, int row, int width, int height)
@@ -64,18 +67,28 @@ public class GridLayoutManager
                 UrDeck.Engine.Diagnostics.UrDeckLog.Warn($"Widget {widget.WidgetTypeId} position clamped from ({widget.Col},{widget.Row})[{widget.Width}x{widget.Height}] to ({clampedCol},{clampedRow})[{clampedWidth}x{clampedHeight}]");
             }
 
-            var pixelPos = new System.Drawing.Point(
+            var cellPos = new System.Drawing.Point(
                 (int)(clampedCol * ColumnWidth),
                 (int)(clampedRow * RowHeight));
-            var pixelSize = new Size(
+            var cellSize = new Size(
                 (int)(clampedWidth * ColumnWidth),
                 (int)(clampedHeight * RowHeight));
+
+            // The card is the cell inset by half the gap on every side. Edges are rounded, not sizes, so the space
+            // between neighbours stays the same for every widget size.
+            double half = GapFraction * ColumnWidth / 2;
+            int left = RoundPx(clampedCol * ColumnWidth + half);
+            int top = RoundPx(clampedRow * RowHeight + half);
+            int right = RoundPx((clampedCol + clampedWidth) * ColumnWidth - half);
+            int bottom = RoundPx((clampedRow + clampedHeight) * RowHeight - half);
 
             var item = new WidgetLayoutItem
             {
                 WidgetTypeId = widget.WidgetTypeId,
-                Position = pixelPos,
-                Size = pixelSize,
+                Position = GapFraction > 0 ? new System.Drawing.Point(left, top) : cellPos,
+                Size = GapFraction > 0 ? new Size(Math.Max(1, right - left), Math.Max(1, bottom - top)) : cellSize,
+                CellPosition = cellPos,
+                CellSize = cellSize,
                 GridSize = new Size(clampedWidth, clampedHeight)
             };
             result.Add(item);
@@ -83,6 +96,8 @@ public class GridLayoutManager
 
         return result;
     }
+
+    private static int RoundPx(double value) => (int)Math.Round(value, MidpointRounding.AwayFromZero);
 
     private static int Clamp(int min, int value, int max)
     {

@@ -8,7 +8,7 @@ It is a .NET 10 WPF application that draws each widget with SkiaSharp. Widgets a
 
 Phase 1 (foundation) is implemented: widget SDK and Roslyn analyzer, hot-reloading plugin loader, grid layout, the WPF host with per-monitor DPI handling, JSON config with hot-reload, and a built-in Clock widget. Verified on the real 1100x3840 panel.
 
-Not done yet: an editor UI, other widgets, shared data providers and the `[RefreshOnEvent]` / `[RefreshAdaptive]` refresh strategies that build on them (such widgets currently render once, or refresh at their minimum interval), a theme engine and a monitor picker. See `docs/ROADMAP.md` for the plan. Memory use is about 66 MB private / 115 MB working set in Release with software composition (see `docs/perf/memory-investigation.md`); an empty WPF window alone is ~53 MB private, so the original 50 MB goal is not reachable with WPF and the baseline is now 60-70 MB.
+Not done yet: an editor UI, other widgets, shared data providers and the `[RefreshOnEvent]` / `[RefreshAdaptive]` refresh strategies that build on them (such widgets currently render once, or refresh at their minimum interval), a theme editor and a monitor picker. See `docs/ROADMAP.md` for the plan. Memory use is about 66 MB private / 115 MB working set in Release with software composition (see `docs/perf/memory-investigation.md`); an empty WPF window alone is ~53 MB private, so the original 50 MB goal is not reachable with WPF and the baseline is now 60-70 MB.
 
 ## Requirements
 
@@ -71,7 +71,10 @@ Config is `urdeck-config.json`, located next to the executable (`src/UrDeck.Host
 | `activePage` | Index of the page to show. |
 | `monitorName` | Target monitor: `"primary"`, `"tallest"` (tallest portrait monitor), `"widest"`, `"largest"` (most pixels), or a device name such as `"DISPLAY1"`. |
 | `monitor` | 1-based monitor index, used when `monitorName` matches nothing. Falls back to the primary monitor. |
-| `theme`, `dock` | Stored but not used yet. |
+| `theme` | Name of the theme: `default-dark` (default), `default-light`, or a folder under `themes/` next to the executable. See [docs/themes.md](docs/themes.md). Unknown names fall back to the default with a warning; changing it applies on config reload without a restart. |
+| `dock` | Stored but not used yet. |
+
+Making a theme: create `themes/<name>/theme.json` next to `UrDeck.Host.exe` with only the values you want to change (colours, card radius/gap/padding, font, text sizes); everything else comes from `default-dark`. Bundle a font by putting the `.ttf` in the same folder and naming it in the file. Edit the theme, then save the config file to apply it. Full format: [docs/themes.md](docs/themes.md).
 
 Grid math: `ColumnWidth = screenWidth / 4` and `RowHeight = ColumnWidth`, so on a 1100 px wide panel each cell is 275x275 and a 4x2 widget is 1100x550.
 
@@ -83,7 +86,7 @@ A widget is a class deriving from `Widget<TConfig>` with a few attributes; the R
 
 | Path | Purpose |
 |---|---|
-| `sdk/UrDeck.Sdk` | Widget SDK (`net10.0`, MIT): attributes, `Widget<TConfig>`, `IWidget`, `WidgetConfig`, render context, `ThemeColors` |
+| `sdk/UrDeck.Sdk` | Widget SDK (`net10.0`, MIT): attributes, `Widget<TConfig>`, `IWidget`, `WidgetConfig`, render context, `Theme` and the `Readout` / `TextLine` components |
 | `sdk/UrDeck.Analyzer` | Roslyn analyzer (`netstandard2.0`, MIT) reporting URDECK001-005 |
 | `src/UrDeck.Engine` | Plugin loader, config store, grid layout, `PageRenderer` |
 | `src/UrDeck.Host` | WPF application (`net10.0-windows10.0.19041.0`): window and monitor placement, one `SKElement` per widget |
@@ -101,6 +104,7 @@ The Windows SDK suffix on the host and test target frameworks is required: `Skia
 | `src/UrDeck.Host`, `src/UrDeck.Engine`, `widgets/`, `tests/` | [GPL-3.0-or-later](LICENSE) with the [plugin exception](PLUGIN-EXCEPTION.md) |
 | `sdk/` (`UrDeck.Sdk`, `UrDeck.Analyzer`) | [MIT](sdk/LICENSE) |
 | Community widgets | The author's choice |
+| Inter variable font (`src/UrDeck.Engine/Themes/Builtin/`) | [SIL Open Font License 1.1](src/UrDeck.Engine/Themes/Builtin/Inter-OFL.txt); the licence text ships with the font |
 
 Widgets that talk to UrDeck only through the SDK API may use any license, including proprietary ones; that is what the plugin exception grants. The license boundary is an assembly boundary: widgets reference only `UrDeck.Sdk` (MIT), never the GPL engine or host. Code samples in the docs are MIT.
 

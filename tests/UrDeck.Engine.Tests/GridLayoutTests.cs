@@ -109,4 +109,42 @@ public class GridLayoutTests
         var i = Layout(1100, 2000, -2, -5, 1, 1);
         Assert.Equal(new Point(0, 0), i.Position);
     }
+
+    private static List<WidgetLayoutItem> LayoutAll(double gap, params (int Col, int Row, int W, int H)[] cells)
+    {
+        var configs = cells.Select(c => new WidgetConfig { WidgetTypeId = "t", Col = c.Col, Row = c.Row, Width = c.W, Height = c.H }).ToList();
+        return new GridLayoutManager(1100, 3000, gap).RenderWidgetLayout(configs, new Size(1100, 3000));
+    }
+
+    [Fact]
+    public void Gap_SeparatesNeighbouringCards()
+    {
+        var items = LayoutAll(0.04, (0, 0, 1, 1), (1, 0, 1, 1));
+
+        Assert.Equal(11, items[1].Position.X - (items[0].Position.X + items[0].Size.Width));
+        Assert.Equal(new Point(0, 0), items[0].CellPosition);
+        Assert.Equal(new Size(275, 275), items[0].CellSize);
+        // Half the gap (5.5 px) from the cell edge, rounded.
+        Assert.InRange(items[0].Position.X, 5, 6);
+    }
+
+    [Fact]
+    public void Gap_DoesNotDependOnWidgetSize()
+    {
+        var items = LayoutAll(0.04, (0, 0, 4, 2), (0, 2, 1, 1), (1, 2, 1, 1));
+
+        int below = items[1].Position.Y - (items[0].Position.Y + items[0].Size.Height);
+        int beside = items[2].Position.X - (items[1].Position.X + items[1].Size.Width);
+        Assert.Equal(11, below);
+        Assert.Equal(below, beside);
+    }
+
+    [Fact]
+    public void ZeroGap_CardEqualsCell()
+    {
+        var item = LayoutAll(0, (1, 1, 2, 1)).Single();
+
+        Assert.Equal(item.CellPosition, item.Position);
+        Assert.Equal(item.CellSize, item.Size);
+    }
 }

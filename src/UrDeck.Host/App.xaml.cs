@@ -12,6 +12,7 @@ using UrDeck.Engine.Config;
 using UrDeck.Engine.Diagnostics;
 using UrDeck.Engine.Plugin;
 using UrDeck.Engine.Rendering;
+using UrDeck.Engine.Themes;
 using UrDeck.Sdk;
 
 namespace UrDeck.Host;
@@ -21,6 +22,7 @@ public partial class App : Application
 {
     private ConfigStore? _configStore;
     private WidgetPluginLoader? _plugins;
+    private ThemeStore? _themes;
 
     // Startup sequence per host-shell spec: monitor -> config -> plugins -> layout -> render loop.
     protected override void OnStartup(StartupEventArgs e)
@@ -55,6 +57,9 @@ public partial class App : Application
 
         _configStore = new ConfigStore(Path.Combine(appDir, "urdeck-config.json"));
 
+        // User themes live in a themes folder next to the executable; the built-in ones are embedded in the engine.
+        _themes = new ThemeStore(Path.Combine(appDir, "themes"));
+
         _plugins = new WidgetPluginLoader();
         _plugins.ScanAndLoadPlugins(Path.Combine(appDir, "plugins"));
 
@@ -70,12 +75,12 @@ public partial class App : Application
         }
 
         ShutdownMode = ShutdownMode.OnMainWindowClose;
-        MainWindow = new MainWindow(_configStore, _plugins, target);
+        MainWindow = new MainWindow(_configStore, _plugins, _themes, target);
         MainWindow.Show();
     }
 
     /// <summary>
-    /// <c>--snapshot out.png [--size WxH]</c>: renders the active page off-screen with the same layout and
+    /// <c>--snapshot out.png [--size WxH] [--theme name]</c>: renders the active page off-screen with the same layout and
     /// widget code as the live window, writes a PNG and exits. Defaults to the target monitor's resolution.
     /// </summary>
     private int RunSnapshot(string[] args, int index, MonitorInfo target)
@@ -94,6 +99,10 @@ public partial class App : Application
                 height = int.Parse(parts[1], CultureInfo.InvariantCulture);
             }
 
+            int themeIndex = Array.IndexOf(args, "--theme");
+            string themeName = themeIndex >= 0 && themeIndex + 1 < args.Length ? args[themeIndex + 1] : _configStore!.Config.Theme;
+            var theme = _themes!.Load(themeName);
+
             var page = _configStore!.Config.CurrentPage;
             var widgets = new List<(WidgetConfig, IWidget)>();
             foreach (var config in page?.Widgets ?? new List<WidgetConfig>())
@@ -105,7 +114,7 @@ public partial class App : Application
                     widgets.Add((config, widget));
             }
 
-            using var bitmap = PageRenderer.RenderToBitmap(width, height, widgets, ThemeColors.DefaultDark, DateTime.Now);
+            using var bitmap = PageRenderer.RenderToBitmap(width, height, widgets, theme, DateTime.Now);
             using var file = File.Create(output);
             bitmap.Encode(file, SKEncodedImageFormat.Png, 100);
             UrDeckLog.Info($"Snapshot {width}x{height} with {widgets.Count} widget(s) written to {Path.GetFullPath(output)}");
