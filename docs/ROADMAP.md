@@ -35,8 +35,9 @@ everything else should be fine on Sonnet.
   (collectible AssemblyLoadContext), grid layout, WPF host with per-monitor DPI placement, Clock widget, tests, placeholder
   icon and render skipping (`NeedsRender`).
 - Repo structure, licensing, the rename and the SDK/Engine split are done (item 1). The repo is `UrDeck/urdeck`.
-- Proposed, not started: `theme-engine` and `display-targeting` (older drafts, to be reworked with `/opsx:explore` then
-  `/opsx:propose`), and `data-providers` (item 3, not written yet).
+- Proposed, not started: `theme-and-card` (item 5, explored and proposed on 2026-10-03, ready for `/opsx:apply`),
+  `display-targeting` (older draft, to be reworked with `/opsx:explore` then `/opsx:propose`), and `data-providers`
+  (item 3, not written yet).
 - Memory: baseline decided. Keep the WPF host; ~66 MB private (60-70 MB) / ~115 MB working set (Release, one Clock,
   software WPF composition). Idle CPU negligible. See `docs/perf/memory-investigation.md`.
 
@@ -199,15 +200,24 @@ Design direction, to be validated with `/opsx:explore` then `/opsx:propose` and 
 - Publish tiers in CONTRIBUTING.md; later show them in the widget picker.
 - Open decision: if the host baseline is unacceptable, evaluate a plain Win32 window + Skia host (est. 20-30 MB).
 
-## 5. Theme engine and shared components (`openspec/changes/theme-engine` is an old draft)
+## 5. Theme and card (`openspec/changes/theme-and-card`)
 
-Shared colors, typography, panel/card styling, spacing, corner radius, exposed via `WidgetRenderContext`;
-user-selectable themes. The Clock's rounded panel card becomes a theme primitive. Do this before building more
-widgets so they don't each invent styling. **Model:** Opus for the design (explore, then propose), Sonnet to implement.
+Themes as data (colours, card shape, typography, stroke; a folder with optional bundled fonts), a host-drawn card
+behind every widget, the gap in the grid layout, and the first shared components (readout, text line), with the Clock
+migrated onto them. Do this before building more widgets so they don't each invent styling.
+**Model:** Sonnet to implement (`/opsx:apply`), Opus to review.
 
-**Next step:** run `/opsx:explore` using [docs/handoff/2026-10-03-theme-and-components.md](handoff/2026-10-03-theme-and-components.md).
-It proposes splitting the work into theme (pure data), shared drawing components (a separate MIT assembly: panel, text,
-icons, gauges, charts) and widgets, and lists the open questions. The new change replaces the old draft.
+The design was settled in an exploration on 2026-10-03; decisions and rejected alternatives are in the change's
+`design.md`. The earlier `theme-engine` draft is kept for reference as `docs/design/theme-engine-draft-*.md`, and the
+handoff that started the exploration is [docs/handoff/2026-10-03-theme-and-components.md](handoff/2026-10-03-theme-and-components.md).
+
+Follow-ups, each its own change, each component landing with its first widget:
+
+- Animation: a way for a widget to request frames, with continuous looping as the design target (animated weather
+  icons, visualizers, transitions). Includes measuring software versus GPU-backed elements (`SKGLElement`) on the panel.
+- Gauge ring (with the performance widget); tinted glyphs and colour or animated icons (with weather); image tile (with
+  shortcuts and the dock). Charts stay parked until a widget needs one.
+- Later theme knobs once measured: shadows, gradients, blur, a motion level, backgrounds, icon packs.
 
 ## 6. Display targeting (`openspec/changes/display-targeting`)
 
