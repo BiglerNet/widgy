@@ -1,10 +1,12 @@
 # UrDeck Framework — Phase 1: Foundation (Hello World)
 
+> **Note (layout after this change):** paths and assembly names below describe the layout when this was written. `UrDeck.Core` was later split into `UrDeck.Sdk` (MIT, in `sdk/`) and `UrDeck.Engine`, and the analyzer moved to `sdk/`; see `AGENTS.md`.
+
 ## Why
 
 HYTE Nexus is a popular PC companion display app that fills a clear market need — a customizable widget dashboard for a secondary monitor — but it is an Electron-based application that consumes excessive memory, CPU, and disk space. The user owns a custom PC case with a vertical 1100×3840 touch panel display (HYTE Y70 Touch) and wants a lightweight, beautiful replacement that:
 
-1. Runs with minimal resource consumption (priority #1): idle widgets should consume near-zero CPU; the memory goal is to stay under 50MB (currently **not met**, see the memory risk in `design.md`).
+1. Runs with minimal resource consumption (priority #1): idle widgets should consume near-zero CPU; the original memory goal was under 50MB, which a WPF host cannot reach; the baseline is now about 66 MB private (60-70 MB), see the memory risk in `design.md`.
 2. Looks exceptional (priority #2): custom rendering with smooth animations, gradient support, and visually stunning gauge/chart widgets.
 3. Is fully extensible: users and third-party developers should be able to create new widgets by writing a single C# plugin DLL.
 4. Supports any monitor resolution dynamically: the 4-column grid layout must automatically adapt to any screen size and DPI.
@@ -76,3 +78,7 @@ This proposal establishes the foundation layer: the widget SDK (metadata-driven 
 - **Breaking Changes**: None (no existing codebase)
 - **Post-Motion Considerations**: Widget plugins are compile-time .NET 10 assemblies — third-party developers reference `UrDeck.Core` (project reference or future NuGet package) with `Private="false"` and the analyzer
 - **Follow-up changes**: `theme-engine` (shared style system) and `display-targeting` (monitor picker and robust display handling)
+
+## Moved to other changes
+
+Event-driven and load-adaptive refresh, the theme engine, the monitor picker, the `dock`/`theme`/`background` config fields, the tray icon and the memory budgets were open follow-ups when this change was closed. They are tracked in `docs/ROADMAP.md`; see section 11 of `tasks.md`.

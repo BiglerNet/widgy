@@ -1,5 +1,7 @@
 # UrDeck Framework — Technical Design
 
+> **Note (layout after this change):** paths and assembly names below describe the layout when this was written. `UrDeck.Core` was later split into `UrDeck.Sdk` (MIT, in `sdk/`) and `UrDeck.Engine`, and the analyzer moved to `sdk/`; see `AGENTS.md`.
+
 ## Context
 
 The user wants a replacement for HYTE Nexus — a lightweight, beautiful, extensible widget dashboard for a dedicated secondary monitor (1100×3840 vertical touch panel). The primary monitor may run games, IDEs, browsers, etc. simultaneously, so UrDeck must consume minimal CPU and memory.
@@ -170,6 +172,12 @@ The Clock currently draws a rounded "panel card" (`ThemeColors.PanelBackgroundCo
 
 The runtime only starts timers for widgets that declare a timer-based refresh. No global update loop exists. Measured idle CPU is ~0.03%.
 
+### Decision 12: Skipping redundant repaints — `NeedsRender`
+
+**Chosen:** `IWidget.NeedsRender(DateTime now)`, a default interface method returning `true` and virtual on `Widget<TConfig>`. After each refresh the host asks it and repaints only when it returns `true`.
+**Why:** a widget can refresh often to stay timely (the Clock ticks every second to catch the minute rollover) yet repaint rarely. It is non-breaking for existing widgets and keeps "is a repaint needed?" separate from "fetch data" (`UpdateAsync`).
+**Rejected:** making `UpdateAsync` return a `bool` — it breaks every existing widget and mixes data fetching with a rendering hint.
+
 ## Risks / Trade-offs
 
 | Risk | Mitigation |
@@ -190,9 +198,10 @@ The runtime only starts timers for widgets that declare a timer-based refresh. N
 
 ## Open Questions
 
-1. **Touch support timing**: Will touch input work on the WPF window directly, or do individual widgets need touch handlers? (Deferred to Phase 4.)
+Resolved or moved when this change was closed (see `docs/ROADMAP.md`):
+
+1. **Touch support timing**: moved to roadmap item 8 (pages and touch).
 2. **Font rendering**: Skia text is rendered with grayscale/subpixel antialiasing into the element's bitmap (not WPF ClearType). Acceptable at the panel's density; revisit if fringing is visible.
-3. **Plugin signing**: Should widgets be digitally signed? (Deferred to Phase 3; none for now.)
-4. **Memory**: How close to the 50MB goal can a WPF host get? (Open; see Risks.)
-5. **Event bus**: Design of the channel behind `[RefreshOnEvent]` (who publishes, threading, lifetime across plugin reload). (Open; tracked in tasks.md.)
-6. **Adaptive refresh**: What "system load" signal drives `[RefreshAdaptive]`? (Open; tracked in tasks.md.)
+3. **Plugin signing**: moved to the marketplace work (roadmap item 13 and its "Parked" list).
+4. **Memory**: resolved. Keep the WPF host and treat about 66 MB private (60-70 MB) as the baseline. Budgets and measurement are roadmap item 4; a Win32 + Skia host is revisited only if that budget proves unacceptable.
+5. **Event bus** and 6. **Adaptive refresh**: moved to the `data-providers` change (roadmap item 3), which designs shared data providers that can drive both.

@@ -11,9 +11,9 @@ The Clock widget (`typeId` `urdeck.widgets.clock`) MUST display the current time
 - Color: the config `TextColor` override if valid, otherwise `WidgetRenderContext.Theme.TextColor`
 - Supported sizes: 4×2, 4×1, 2×1 and 1×1
 
-#### Scenario: Clock updates every second
+#### Scenario: Clock ticks every second but repaints once a minute
 - **WHEN** the Clock widget is configured with `[RefreshOnTick(1, TimeUnit.Seconds)]`
-- **THEN** the displayed time updates every second
+- **THEN** it refreshes every second so the minute rollover is timely, but `NeedsRender` returns `true` only when the displayed minute changes, so it repaints at most once a minute
 
 #### Scenario: Clock renders at different sizes
 - **WHEN** the Clock widget is placed at different grid sizes (e.g., 4×2, 4×1, 2×1, 1×1)

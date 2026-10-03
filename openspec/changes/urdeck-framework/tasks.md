@@ -113,7 +113,6 @@ Status legend: `[x]` done and verified against the code; `[ ]` open. Task wordin
 ## 9. Final Polish
 
 - [ ] 9.1 Add application icon (.ico)
-- [ ] 9.2 Use the `icon` config field for the startup/tray icon (field exists in `UrDeckConfig` but is unused)
 - [x] 9.3 Remove debug output: Console/debug writes replaced by `UrDeckLog` file logging (no `Console.Write` calls remain)
 - [x] 9.4 Test with actual display hardware — done on the HYTE Y70 Touch 1100×3840 panel
 - [x] 9.5 Verify `urdeck.sln` builds in Release mode (`dotnet build urdeck.sln -c Release`: succeeded, 0 warnings, 0 errors)
@@ -121,15 +120,22 @@ Status legend: `[x]` done and verified against the code; `[ ]` open. Task wordin
 - [x] 9.7 Add `README.md` to the project root explaining how to build and run
 - [x] 9.8 N/A by design: the source default config `UrDeck.Host/urdeck-config.json` is intentionally tracked; the runtime copy the build places under `bin/` is already ignored via `[Bb]in/`
 - [x] 9.9 Reference UrDeck.Analyzer from `UrDeck.Widgets.Clock.csproj` (compile-time validation)
-- [x] 9.10 Open questions from design.md are resolved or recorded in its Open Questions section (memory, event bus and adaptive refresh remain open)
+- [x] 9.10 Open questions from design.md are resolved or recorded in its Open Questions section (memory, event bus and adaptive refresh were resolved or moved, see section 11)
 
-## 10. Open Follow-ups
+## 10. Follow-ups
 
-- [ ] 10.1 Implement the `[RefreshOnEvent]` event channel/bus (publish/subscribe by event name, thread marshalling to the UI, survives plugin reload); until then such widgets render once on load
-- [ ] 10.2 Implement `[RefreshAdaptive]` scaling between `MinMs` and `MaxMs` based on system load; currently runs at `MinMs`
-- [ ] 10.3 Memory: decide between revising the < 50MB goal for a WPF host (~66 MB private / 115 MB WS measured with software composition, now the default) or a Win32 + Skia host. Findings in `docs/perf/memory-investigation.md`
 - [x] 10.4 Unloaded plugin contexts are collected in the live WPF host (fixed WPF `SafeSecurityHelper` cache pinning and System.Text.Json caching; verified ~1.9s after unload)
-- [ ] 10.5 Consume `dock`, `theme` and `background` config fields in the host (currently persisted only)
 - [x] 10.6 Small cleanups: layout clamp warning goes through `UrDeckLog`; unused `GridLayoutManager.MonitorChanged` event removed
-- [ ] 10.7 Move widget styling (panel card, fonts) into a shared theme engine (proposed as the `theme-engine` change)
-- [ ] 10.8 Monitor picker and robust display handling (proposed as the `display-targeting` change)
+- [ ] 10.9 Skip redundant redraws: `IWidget.NeedsRender(DateTime now)` (default `true`, virtual on `Widget<TConfig>`); the host repaints only when it returns `true`; the Clock repaints once a minute
+- [ ] 10.10 Close-out: placeholder icon builds into the exe (9.1), specs synced into `openspec/specs`, roadmap "Current state" updated, change archived
+
+## 11. Moved out of this change
+
+Open when the framework change was closed; tracked in `docs/ROADMAP.md`:
+
+- Icon from the `icon` config field and a tray icon (was 9.2): roadmap item 12 (packaging and distribution).
+- `[RefreshOnEvent]` event bus (was 10.1) and `[RefreshAdaptive]` load-based scaling (was 10.2): the `data-providers` change (roadmap item 3).
+- Memory goal (was 10.3): decided to keep the WPF host and treat about 66 MB private (60-70 MB) as the baseline. Budgets and measurement are roadmap item 4; a Win32 + Skia host is revisited only if that budget proves unacceptable.
+- Consuming the `dock`, `theme` and `background` config fields (was 10.5): theme in the theme engine (roadmap item 5), backgrounds and dock in roadmap items 9 and 10.
+- Shared widget styling / theme engine (was 10.7): roadmap item 5.
+- Monitor picker and robust display handling (was 10.8): roadmap item 6.
