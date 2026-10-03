@@ -59,7 +59,7 @@
 - [x] 9.2 `openspec validate --all --strict`
 - [x] 9.3 Snapshots at 1100x3840 for `default-dark` and `default-light` (`--theme`); compare with the "before" picture and give all three to the owner
 - [x] 9.4 Add a throwaway user theme with only an accent colour and radius 0; confirm flat tiles in a snapshot, then delete it
-- [ ] 9.5 Run on the panel (detached); check `urdeck.log` for theme selection and warnings; change `theme` in the config and confirm the switch without restart; ask the owner to look
+- [x] 9.5 Run on the panel (detached); check `urdeck.log` for theme selection and warnings; change `theme` in the config and confirm the switch without restart; ask the owner to look
 - [x] 9.6 Record private bytes after the change and compare with task 1.3 against the 60-70 MB budget; confirm idle CPU is unchanged
 
 ## 10. Documentation

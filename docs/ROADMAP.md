@@ -201,7 +201,7 @@ Design direction, to be validated with `/opsx:explore` then `/opsx:propose` and 
 - Publish tiers in CONTRIBUTING.md; later show them in the widget picker.
 - Open decision: if the host baseline is unacceptable, evaluate a plain Win32 window + Skia host (est. 20-30 MB).
 
-## 5. Theme and card (`openspec/changes/theme-and-card`)
+## 5. Theme and card (`openspec/changes/archive/2026-10-03-theme-and-card`)
 
 **Status:** done (SDK 0.2.0.0; paint cost in `docs/perf/theme-card-paint.md`, format in `docs/themes.md`).
 
