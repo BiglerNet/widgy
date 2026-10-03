@@ -39,8 +39,24 @@ everything else should be fine on Sonnet.
   line components, Clock migrated); see item 5.
 - Proposed, not started: `display-targeting` (older draft, to be reworked with `/opsx:explore` then `/opsx:propose`), and `data-providers`
   (item 3, not written yet).
+- Next: explore and propose item 14 (animation and rendering path), then item 3 (data providers), each in a fresh Opus
+  session starting from its handoff in `docs/handoff/`. See "Suggested order" below.
 - Memory: baseline decided. Keep the WPF host; ~66 MB private (60-70 MB) / ~115 MB working set (Release, one Clock,
   software WPF composition). Idle CPU negligible. See `docs/perf/memory-investigation.md`.
+
+### Suggested order
+
+Item numbers are identifiers, not a sequence. The order below gets the owner's current first page (clock, weather,
+performance, shortcuts, dock, page indicator) rebuilt with the fewest blocked steps:
+
+1. **Item 14, animation and rendering path.** First because the software-versus-GPU answer could change how every widget
+   is rendered; cheapest to learn with one widget. Handoff: `docs/handoff/2026-10-03-animation-and-rendering.md`.
+2. **Item 3, data providers.** Handoff: `docs/handoff/2026-10-03-data-providers.md`.
+3. **Performance widget** (item 7), which brings the gauge component. Needs item 3.
+4. **Weather widget** (item 7), which brings glyphs and animated colour icons. Needs item 14.
+5. **Pages and touch** (item 8), then **shortcuts and dock** (items 7 and 10), which bring the image tile.
+
+Display targeting (item 6) is independent and can be done whenever monitor handling becomes a problem.
 
 ---
 
@@ -165,6 +181,10 @@ shared data: several widgets that all want CPU/GPU/memory (or weather, now-playi
 Done in `urdeck-framework`: skipping redundant redraws via `IWidget.NeedsRender(DateTime now)` (the Clock repaints once a
 minute) and the placeholder icon.
 
+**Next step:** a fresh Opus session running `/opsx:explore` from
+[docs/handoff/2026-10-03-data-providers.md](handoff/2026-10-03-data-providers.md), which adds the first consumer (the
+performance widget) and the open questions to the direction below.
+
 Design direction, to be validated with `/opsx:explore` then `/opsx:propose` and an Opus review:
 
 - A latest-value store plus a change signal, not a pipeline framework: named **topics** (`system.cpu`,
@@ -216,10 +236,9 @@ handoff that started the exploration is [docs/handoff/2026-10-03-theme-and-compo
 
 Follow-ups (see `design.md` of the theme-and-card change for the constraints they build on), each its own change, each component landing with its first widget:
 
-- Animation: a way for a widget to request frames, with continuous looping as the design target (animated weather
-  icons, visualizers, transitions). Includes measuring software versus GPU-backed elements (`SKGLElement`) on the panel.
+- Animation and the rendering path: now item 14.
 - Gauge ring (with the performance widget); tinted glyphs and colour or animated icons (with weather); image tile (with
-  shortcuts and the dock). Charts stay parked until a widget needs one.
+  shortcuts and the dock). Charts stay parked until a widget needs one. See item 7 for which widget brings which.
 - Later theme knobs once measured: shadows, gradients, blur, a motion level, backgrounds, icon packs.
 
 ## 6. Display targeting (`openspec/changes/display-targeting`)
@@ -231,9 +250,33 @@ hot-plug, mixed-DPI setups and arbitrary monitor wake order. Needs real sleep/wa
 
 ## 7. Default widget set
 
-Clock (done), weather, CPU/memory/GPU usage, media/now-playing. Notes: sensor data likely via LibreHardwareMonitor
-(some sensors need admin; run as a separate provider publishing on the event bus); weather via a keyless API such as
-Open-Meteo. Each widget must meet its performance budget (item 4). **Model:** Sonnet.
+Clock (done), weather, performance, shortcuts, media/now-playing. Each widget is its own change, must meet its
+performance budget (item 4), takes its whole look from the theme (item 5) and brings the shared components it is the
+first to need. The goal is the same features as the owner's HYTE Nexus page with a deliberately different look, not a
+clone. **Model:** Sonnet to implement; Opus where a widget introduces a new component or config pattern.
+
+| Widget | Sizes | Shows | Needs first | Brings |
+|---|---|---|---|---|
+| Clock | 4x2, 4x1, 2x1, 1x1 | time, date | done | readout, text line (done) |
+| Performance | 2x2 (one stat), 4x2 (two gauges, three text stats), 4x4 (four gauges, three text stats) | CPU and GPU temperature and load, memory, GPU power and clock | item 3 | gauge ring (a ring around a readout) |
+| Single stat | 1x1 | one reading, for example one CPU core per card | item 3 | nothing new; may be the performance widget at its smallest size |
+| Weather | 4x2 | animated colour icon, temperature, condition, high and low, place, sunrise and sunset | item 14 | tinted glyph, colour or animated icon |
+| Shortcut | 1x1 | an app or URL icon that launches on tap | item 8 (touch) | image tile, shared with the dock (item 10) |
+| Media / now playing | open | track, artist, art, controls | items 3 and 8 | image tile reuse |
+
+Conventions settled in the theme exploration (2026-10-03), to follow in every widget:
+
+- A label belongs to the reading, not to the card. There are no host-drawn title bars. A widget that needs a label draws
+  it with the readout or text line.
+- Label text is a per-widget setting with three states: not set (the widget picks a default from what it points at, for
+  example "Core 2"), text (the user's override) and empty (hidden). A widget with several readings has one such setting
+  per reading. There is no common "title" field on the base `WidgetConfig`.
+- A widget reads its grid size from its config and picks a composition for that size. Components are size-agnostic: they
+  draw into whatever rectangle the widget gives them.
+- Each widget owns its configuration type. A per-widget editor UI is part of item 11, not of the widget changes.
+
+Notes: sensor data likely via LibreHardwareMonitor (some sensors need admin; run it as a provider, see item 3); weather
+via a keyless API such as Open-Meteo; Meteocons (MIT, full-colour, Lottie) is a candidate for animated weather art.
 
 ## 8. Pages and touch
 
@@ -269,3 +312,32 @@ Installer, start with Windows, tray icon (and using the `icon` config field for 
 - Cross-brand support: some case screens are Windows monitors (like the Y70), others are USB LCDs driven by vendor
   protocols. `PageRenderer` already renders a page to a bitmap, which is the basis for "display backends" that push
   frames to non-monitor devices.
+
+## 14. Animation and the rendering path (new change, not written yet)
+
+**Why:** continuous motion is a design target (decided 2026-10-03): animated weather icons that loop like Nexus, music
+visualizers, chart and value transitions. Today a widget can only repaint on a fixed timer, and every repaint redraws
+its whole card in software and copies the bitmap to WPF. Nobody has measured what a looping animation costs on the
+panel, and the answer may change how all widgets are rendered, so this comes before more widgets are built.
+**Model:** Opus for the exploration and design (it fixes public SDK API and possibly the host's rendering architecture),
+Sonnet to implement.
+
+**Next step:** a fresh Opus session running `/opsx:explore` from
+[docs/handoff/2026-10-03-animation-and-rendering.md](handoff/2026-10-03-animation-and-rendering.md), then `/opsx:propose`.
+
+Direction, to be validated:
+
+- **Measure first.** A spike on the Y70: a looping animation on a 4x2 card at several frame rates, in software and with
+  hardware composition, with CPU and private bytes recorded in `docs/perf/`. The design rests on those numbers.
+- **A way for a widget to ask for frames**, and to stop asking, that fits with `NeedsRender` and the refresh attributes
+  and keeps a page with no animation at today's idle cost.
+- **Software or GPU.** Software WPF composition was chosen to save about 62 MB (`docs/perf/memory-investigation.md`).
+  `SKGLElement` (OpenGL) exists in `SkiaSharp.Views.WPF`. Whether to stay in software, switch, or mix is the main
+  architectural question, with the 60-70 MB budget and "idle CPU near zero" as the constraints.
+- **Limits the user and system can set:** a frame-rate cap, a motion level (off, subtle, full), pausing when the display
+  sleeps or the page is hidden, and backing off when the PC is busy (ties to item 3's `system.cpu`).
+- **Playing animation files:** Lottie through `SkiaSharp.Skottie` is the candidate, as a shared component that arrives
+  with the weather widget.
+
+Out of scope here: the weather widget itself, video backgrounds (item 9, though they share the budget question), page
+transitions (item 8).
