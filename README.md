@@ -8,7 +8,7 @@ It is a .NET 10 WPF application that draws each widget with SkiaSharp. Widgets a
 
 Phase 1 (foundation) is implemented: widget SDK and Roslyn analyzer, hot-reloading plugin loader, grid layout, the WPF host with per-monitor DPI handling, JSON config with hot-reload, and a built-in Clock widget. Verified on the real 1100x3840 panel.
 
-Not done yet: an editor UI, other widgets, the `[RefreshOnEvent]` event bus (such widgets render once), adaptive refresh scaling (`[RefreshAdaptive]` currently runs at its minimum interval), a theme engine and a monitor picker (both proposed under `openspec/changes/`). Memory use is about 66 MB private / 115 MB working set in Release with software composition (see `docs/perf/memory-investigation.md`); an empty WPF window alone is ~53 MB private, so the original 50 MB goal is not reachable with WPF.
+Not done yet: an editor UI, other widgets, shared data providers and the `[RefreshOnEvent]` / `[RefreshAdaptive]` refresh strategies that build on them (such widgets currently render once, or refresh at their minimum interval), a theme engine and a monitor picker. See `docs/ROADMAP.md` for the plan. Memory use is about 66 MB private / 115 MB working set in Release with software composition (see `docs/perf/memory-investigation.md`); an empty WPF window alone is ~53 MB private, so the original 50 MB goal is not reachable with WPF and the baseline is now 60-70 MB.
 
 ## Requirements
 
@@ -90,7 +90,7 @@ A widget is a class deriving from `Widget<TConfig>` with a few attributes; the R
 | `widgets/UrDeck.Widgets.Clock` | Built-in Clock plugin (`urdeck.widgets.clock`) |
 | `tests/UrDeck.Engine.Tests`, `tests/UrDeck.Analyzer.Tests` | xUnit tests |
 | `docs/` | `ROADMAP.md` (what to work on next), performance notes |
-| `openspec/` | Spec-driven change documents: `urdeck-framework` (Phase 1), plus the proposed `theme-engine` and `display-targeting` |
+| `openspec/` | Spec-driven documents: `specs/` holds the current capability specs (grid layout, host shell, widget SDK, Clock), `changes/` holds proposals in flight and the archive of finished changes |
 
 The Windows SDK suffix on the host and test target frameworks is required: `SkiaSharp.Views.WPF` only ships its .NET build for `net10.0-windows10.0.19041`.
 
