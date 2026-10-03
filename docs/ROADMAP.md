@@ -199,11 +199,15 @@ Design direction, to be validated with `/opsx:explore` then `/opsx:propose` and 
 - Publish tiers in CONTRIBUTING.md; later show them in the widget picker.
 - Open decision: if the host baseline is unacceptable, evaluate a plain Win32 window + Skia host (est. 20-30 MB).
 
-## 5. Theme engine (`openspec/changes/theme-engine`)
+## 5. Theme engine and shared components (`openspec/changes/theme-engine` is an old draft)
 
 Shared colors, typography, panel/card styling, spacing, corner radius, exposed via `WidgetRenderContext`;
 user-selectable themes. The Clock's rounded panel card becomes a theme primitive. Do this before building more
-widgets so they don't each invent styling. **Model:** Sonnet (Opus for the API design review).
+widgets so they don't each invent styling. **Model:** Opus for the design (explore, then propose), Sonnet to implement.
+
+**Next step:** run `/opsx:explore` using [docs/handoff/2026-10-03-theme-and-components.md](handoff/2026-10-03-theme-and-components.md).
+It proposes splitting the work into theme (pure data), shared drawing components (a separate MIT assembly: panel, text,
+icons, gauges, charts) and widgets, and lists the open questions. The new change replaces the old draft.
 
 ## 6. Display targeting (`openspec/changes/display-targeting`)
 
